@@ -30,7 +30,7 @@
       </div>
 
       <!-- BOTÓN LOGIN -->
-      <button class="btn-login" @click="$router.push('/admin')">
+      <button class="btn-login" @click="$router.push('/admin/dashboard')">
         Ingresar
       </button>
 

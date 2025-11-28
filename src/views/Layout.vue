@@ -27,7 +27,7 @@
 
                 <!-- MENU COMPACTO -->
                 <nav class="menu">
-                    <router-link to="/dashboard" class="menu-item" active-class="active">📊
+                    <router-link to="/admin/dashboard" class="menu-item" active-class="active">📊
                         Dashboard</router-link>
                     <router-link to="/admin/drivers" class="menu-item" active-class="active">🚚
                         Transportadores</router-link>
