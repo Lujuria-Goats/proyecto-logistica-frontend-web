@@ -1,6 +1,9 @@
 <template>
   <div class="login-container">
 
+    <!-- FONDO ANIMADO -->
+    <canvas id="canvas-bg"></canvas>
+
     <!-- BOTÓN VOLVER -->
     <button class="btn-back" @click="$router.push('/')">
       ⬅ Volver
@@ -33,7 +36,6 @@
       <button class="btn-login" @click="$router.push('/admin/dashboard')">
         Ingresar
       </button>
-
     </div>
   </div>
 </template>
@@ -47,14 +49,68 @@ export default {
       password: "",
     };
   },
+
+  mounted() {
+    this.initAnimatedBG();
+  },
+
   methods: {
+    initAnimatedBG() {
+      const canvas = document.getElementById("canvas-bg");
+      const ctx = canvas.getContext("2d");
+
+      let w, h;
+      const resize = () => {
+        w = canvas.width = window.innerWidth;
+        h = canvas.height = window.innerHeight;
+      };
+      resize();
+      window.addEventListener("resize", resize);
+
+      // CONFIG DEL CODEPEN
+      const numDots = 90;
+      const dots = [];
+
+      class Dot {
+        constructor() {
+          this.x = Math.random() * w;
+          this.y = Math.random() * h;
+          this.r = Math.random() * 2 + 1;
+          this.dx = (Math.random() - 0.5) * 0.7;
+          this.dy = (Math.random() - 0.5) * 0.7;
+        }
+        draw() {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+          ctx.fill();
+        }
+        move() {
+          if (this.x < 0 || this.x > w) this.dx *= -1;
+          if (this.y < 0 || this.y > h) this.dy *= -1;
+          this.x += this.dx;
+          this.y += this.dy;
+        }
+      }
+
+      for (let i = 0; i < numDots; i++) dots.push(new Dot());
+
+      function animate() {
+        ctx.clearRect(0, 0, w, h);
+        dots.forEach((d) => {
+          d.move();
+          d.draw();
+        });
+        requestAnimationFrame(animate);
+      }
+      animate();
+    },
+
     loginUser() {
       console.log({
         email: this.email,
         password: this.password,
       });
-
-      // Aquí harías tu fetch/axios al backend
     },
   },
 };
@@ -68,14 +124,22 @@ export default {
   --light-gray: #e8e8e8;
 }
 
-/* CENTRADO GENERAL */
+/* CANVAS DE FONDO */
+#canvas-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: #000; /* Fondo negro igual al CodePen */
+}
+
+/* CONTENEDOR */
 .login-container {
   height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: #f5f5f5;
   position: relative;
+  overflow: hidden;
 }
 
 /* BOTÓN VOLVER */
@@ -92,6 +156,7 @@ export default {
   font-size: 0.95rem;
   cursor: pointer;
   transition: 0.2s;
+  z-index: 2;
 }
 
 .btn-back:hover {
@@ -106,6 +171,7 @@ export default {
   border-radius: 20px;
   box-shadow: 0px 8px 25px rgba(0, 0, 0, 0.15);
   text-align: center;
+  z-index: 2;
 }
 
 /* TITULOS */
