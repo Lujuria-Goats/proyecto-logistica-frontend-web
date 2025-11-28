@@ -8,6 +8,12 @@
       <!-- SECCIÓN 1: LOGIN / REGISTRO -->
       <section class="snap-section">
         <div class="content-wrapper">
+          
+          <!-- 🔥 LOGO 100% RESPONSIVE -->
+          <div class="logo-box">
+            <img src="../assets/logo.png" alt="Apex Vision Logo" class="logo-img" />
+          </div>
+
           <h1 class="title">Apex Vision</h1>
           <p class="subtitle">Lo que no se ve, no se entrega.</p>
 
@@ -17,9 +23,10 @@
             en tiempo real.
           </p>
 
-          <div  class="d-flex align-items-center buttons" style="width: 100%;">
-            <button class=" btn-register">Registrarse</button>
-            <button class="btn-login">Iniciar Sesión</button>
+          <!-- 🔥 BOTONES MODERNOS -->
+          <div class="d-flex align-items-center buttons" style="width: 100%;">
+            <button class="btn-register" @click="$router.push('/register')">Registrarse</button>
+            <button class="btn-login" @click="$router.push('/login')">Iniciar Sesión</button>
           </div>
         </div>
       </section>
@@ -104,15 +111,12 @@ export default {
   z-index: 3;
   padding: 20px;
 
-  /* centrado en pc */
   height: 100%;
   justify-content: center;
   align-items: center;
 }
 
-/* ------------------------------------------ */
-/* ----------- SECCIONES EN MÓVIL ----------- */
-/* ------------------------------------------ */
+/* ----------- DISEÑO MÓVIL ----------- */
 @media (max-width: 900px) {
   .landing {
     overflow-y: scroll;
@@ -130,15 +134,10 @@ export default {
 
   .snap-section {
     scroll-snap-align: start;
-
-    /* Ajuste: centrado en eje Y sin cortar contenido */
     display: flex;
-    justify-content: center;   /* ← centrado vertical */
+    justify-content: center;
     align-items: center;
-
-    /* Ajuste clave: más compacto pero sin cortar */
     min-height: calc(100vh - 40px);
-
     padding: 20px 18px;
   }
 
@@ -153,6 +152,22 @@ export default {
   }
 }
 
+/* ----------- LOGO RESPONSIVE ----------- */
+.logo-box {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.logo-img {
+  border-radius: 10px;
+  width: 150px;
+  max-width: 60%;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 0 10px rgba(212,175,55,0.3));
+}
 
 /* ----------- CARD PRINCIPAL ----------- */
 .content-wrapper {
@@ -179,10 +194,10 @@ export default {
 
 @keyframes fadeInRight {
   from { opacity: 0; transform: translateX(30px); }
-  to   { opacity: 1; transform: translateX(0); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
-/* ----------- TIPOGRAFÍA Y BOTONES ----------- */
+/* ---------------- TIPOGRAFÍA ---------------- */
 .title {
   font-size: 3rem;
   color: var(--text-main);
@@ -206,48 +221,47 @@ export default {
   line-height: 1.6;
 }
 
+/* ---------------- BOTONES PREMIUM ---------------- */
 .buttons {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 18px;
+  align-items: center;
 }
 
-.btn {
-  padding: 14px;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  font-size: 1.1rem;
-  font-weight: bold;
-  transition: 0.25s ease;
-}
-
-.btn-register {
-  border-radius: 5px;
-  background: #0f0f0f;
-  border: 2px solid var(--gold);
-  width: 40%;
-  padding: 3px;
-  color: #fff8f8ff;
-}
-.btn-register:hover {
-  background: var(--gold-web);
-  transform: translateY(-3px);
-  color: #0f0f0f;
-
-}
-
+.btn-register,
 .btn-login {
-  background: #0f0f0f;
-  border-radius: 5px;
+  width: 70%;
+  padding: 14px 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  border-radius: 14px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+
+  background: rgba(0, 0, 0, 0.884);
   border: 2px solid var(--gold);
-  width: 40%;
-  padding: 3px;
-  color: #f5f3f3ff;
+  color: white;
+
+  box-shadow: 0 0 12px rgba(212,175,55,0.18),
+              inset 0 0 12px rgba(212,175,55,0.08);
+
+  backdrop-filter: blur(6px);
+  transition: all 0.3s ease;
 }
+
+.btn-register:hover,
 .btn-login:hover {
-  background: var(--gold);
-  color: #0f0f0f;
-  transform: translateY(-3px);
+  background: rgba(230, 190, 59, 0.61);
+  color: rgb(5, 5, 5);
+  box-shadow: 0 0 22px rgba(212,175,55,0.35),
+              inset 0 0 12px rgba(212,175,55,0.15);
+  transform: translateY(-2px);
+}
+
+.btn-register:active,
+.btn-login:active {
+  transform: scale(0.97);
+  box-shadow: 0 0 10px rgba(212,175,55,0.15);
 }
 </style>
