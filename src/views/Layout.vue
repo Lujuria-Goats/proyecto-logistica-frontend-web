@@ -31,8 +31,7 @@
                         Dashboard</router-link>
                     <router-link to="/admin/drivers" class="menu-item" active-class="active">🚚
                         Transportadores</router-link>
-                    <router-link to="/admin/routes" class="menu-item" active-class="active">🗺️ Rutas
-                        Óptimas</router-link>
+                    <router-link to="/admin/assignRoutes" class="menu-item" active-class="active">🗺️ Asignar rutas</router-link>
                     <router-link to="/admin/logs" class="menu-item" active-class="active">🤖 Auditoría /
                         IA</router-link>
                     <router-link to="/admin/settings" class="menu-item" active-class="active">⚙️

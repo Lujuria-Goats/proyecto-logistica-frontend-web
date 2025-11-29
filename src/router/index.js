@@ -3,6 +3,9 @@ import Landing from '../views/Landing.vue'
 import Register from "../views/Register.vue";
 import Layout from "../views/Layout.vue";
 import Dashboard from "../components/Dashboard.vue";
+import Drivers from '../components/Drivers.vue';
+import Router from '../components/AssignRoutes.vue';
+import AssignRoutes from '../components/AssignRoutes.vue';
 
 const routes = [
   {
@@ -34,6 +37,16 @@ const routes = [
         path: 'dashboard',      // 👈 SIN el /
         name: 'Dashboard',
         component: Dashboard
+      },
+      {
+        path: 'drivers',      // 👈 SIN el /
+        name: 'Drivers',
+        component: Drivers
+      },
+        {
+        path: 'assignRoutes',      // 👈 SIN el /
+        name: 'AssignRoutes',
+        component: AssignRoutes
       }
     ]
   }

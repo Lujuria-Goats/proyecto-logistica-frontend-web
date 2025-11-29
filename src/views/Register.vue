@@ -9,7 +9,7 @@
 
     <!-- BOTÓN VOLVER -->
     <button class="btn-back" @click="$router.push('/')">
-      ⟵ Volver
+      ⬅  Volver
     </button>
 
     <div class="register-card fade-in-up">
