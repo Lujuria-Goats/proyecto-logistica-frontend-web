@@ -353,8 +353,11 @@ export default {
   border: 1px solid rgba(255,255,255,0.06);
   color: #efe8c7;
   cursor: pointer;
+width: 50px;
+  display: flex;          /* <-- centra contenido */
+  align-items: center;    /* <-- centra vertical */
+  justify-content: center;/* <-- centra horizontal */
 }
-
 /* small screens */
 @media (max-width: 640px) {
   .drivers-grid { grid-template-columns: 1fr; }

@@ -6,6 +6,7 @@ import Dashboard from "../components/Dashboard.vue";
 import Drivers from '../components/Drivers.vue';
 import Router from '../components/AssignRoutes.vue';
 import AssignRoutes from '../components/AssignRoutes.vue';
+import Settings from '../components/Settings.vue';
 
 const routes = [
   {
@@ -47,6 +48,11 @@ const routes = [
         path: 'assignRoutes',      // 👈 SIN el /
         name: 'AssignRoutes',
         component: AssignRoutes
+      }, 
+      {
+        path: 'settings',      // 👈 SIN el /
+        name: 'Settings',
+        component: Settings
       }
     ]
   }
