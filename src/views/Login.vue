@@ -145,6 +145,20 @@ export default {
     },
 
     /* ------------------------------
+       DECODIFICAR TOKEN JWT
+    --------------------------------*/
+    decodeToken(token) {
+      try {
+        const payload = token.split(".")[1];
+        const decoded = JSON.parse(atob(payload));
+        return decoded;
+      } catch (error) {
+        console.error("Error al decodificar token:", error);
+        return null;
+      }
+    },
+
+    /* ------------------------------
        LOGIN
     --------------------------------*/
     async loginUser() {
@@ -153,7 +167,7 @@ export default {
         return;
       }
 
-      this.loading = true; // 🔥 Activar spinner
+      this.loading = true;
 
       try {
         const res = await fetch(this.apiUrl, {
@@ -165,34 +179,46 @@ export default {
           }),
         });
 
-        let errorData = null;
         if (!res.ok) {
-          errorData = await res.json().catch(() => null);
-          console.error("Error Login:", errorData);
-
-          this.loading = false;  
+          this.loading = false;
           this.showNotification("Correo o contraseña incorrectos.", "error");
           return;
         }
 
         const data = await res.json();
-        console.log("Respuesta login:", data);
 
         if (data.token) {
           localStorage.setItem("token", data.token);
         }
 
+        // 🔥 Decodifica el token
+        const decoded = this.decodeToken(data.token);
+
+        if (!decoded || !decoded.role) {
+          this.showNotification("Token inválido.", "error");
+          return;
+        }
+
+        const role = decoded.role;
+
         this.showNotification("Inicio de sesión exitoso ✔", "success");
 
+        // 🔥 REDIRECCIÓN SEGÚN ROL
         setTimeout(() => {
-          this.$router.push("/admin/dashboard");
+          if (role === "Admin") {
+            this.$router.push("/admin/dashboard");
+          } else if (role === "Driver") {
+            this.$router.push("/driver/dashboard");
+          } else {
+            this.showNotification("Rol desconocido.", "error");
+          }
         }, 900);
 
       } catch (error) {
-        console.error("Error general de conexión:", error);
+        console.error("Error general:", error);
         this.showNotification("No se pudo conectar con el servidor.", "error");
       } finally {
-        this.loading = false; // 🔥 Apagar spinner siempre
+        this.loading = false;
       }
     },
   },

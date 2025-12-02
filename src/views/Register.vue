@@ -255,7 +255,7 @@ export default {
 
     async submitForm() {
       if (!this.validateForm()) {
-        this.showNotification("❌ Por favor, completa correctamente todos los campos.", "error");
+        this.showNotification("Por favor, completa correctamente todos los campos.", "error");
         return;
       }
 

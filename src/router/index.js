@@ -24,35 +24,30 @@ const routes = [
     component: () => import("../views/Login.vue"),
   },
 
-  // 🟡 RUTAS DEL ADMIN (protegidas)
+  // 🟡 RUTAS ADMIN (solo Admin)
   {
     path: '/admin',
     component: Layout,
-    meta: { requiresAuth: true },   // 👈 marca todo /admin como protegido
+    meta: { requiresAuth: true, role: "Admin" },
+    children: [
+      { path: '', redirect: 'dashboard' },
+      { path: 'dashboard', name: 'Dashboard', component: Dashboard },
+      { path: 'drivers', name: 'Drivers', component: Drivers },
+      { path: 'assignRoutes', name: 'AssignRoutes', component: AssignRoutes },
+      { path: 'settings', name: 'Settings', component: Settings }
+    ]
+  },
+
+  // 🔵 RUTAS DRIVER (solo Driver)
+  {
+    path: "/driver",
+    component: () => import("../views/DriverLayout.vue"),
+    meta: { requiresAuth: true, role: "Driver" },
     children: [
       {
-        path: '',
-        redirect: 'dashboard'
-      },
-      {
-        path: 'dashboard',
-        name: 'Dashboard',
-        component: Dashboard
-      },
-      {
-        path: 'drivers',
-        name: 'Drivers',
-        component: Drivers
-      },
-      {
-        path: 'assignRoutes',
-        name: 'AssignRoutes',
-        component: AssignRoutes
-      },
-      {
-        path: 'settings',
-        name: 'Settings',
-        component: Settings
+        path: "dashboard",
+        name: "DriverDashboard",
+        component: () => import("../components/driver/DriverDashboard.vue")
       }
     ]
   }
@@ -64,12 +59,34 @@ const router = createRouter({
 })
 
 
-// 🛡️ GUARDIAN GLOBAL
+// 🛡️ GUARDIAN GLOBAL CON VALIDACIÓN DE ROL
 router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem("token")  // 👈 o "user", como lo manejes
+  const token = localStorage.getItem("token")
 
-  if (to.meta.requiresAuth && !token) {
-    return next("/login")  // 👈 bloquea y redirige
+  if (!to.meta.requiresAuth) {
+    return next()
+  }
+
+  // ❌ Si NO hay token bloques todas las rutas protegidas
+  if (!token) {
+    return next("/login")
+  }
+
+  // ✅ Leer el rol del token
+  let role = null
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]))
+    role = payload.role
+  } catch (e) {
+    console.error("Token inválido:", e)
+    return next("/login")
+  }
+
+  // 🛂 Si la ruta requiere un rol específico y NO coincide → redirige
+  if (to.meta.role && to.meta.role !== role) {
+    if (role === "Driver") return next("/driver/dashboard")
+    if (role === "Admin") return next("/admin/dashboard")
+    return next("/login")
   }
 
   next()
