@@ -9,13 +9,9 @@
       ⬅ Volver
     </button>
 
-    <!-- NOTIFICACIÓN -->
-    
-
     <div class="card">
       <h2 class="title">Iniciar Sesión</h2>
       <p class="subtitle">Accede a Apex Vision y continúa tu operación.</p>
-      
 
       <!-- INPUTS -->
       <div class="form-group">
@@ -35,19 +31,21 @@
           placeholder="********"
         />
       </div>
-       <div
-      v-if="notification.visible"
-      :class="['notification', notification.type]"
-    >
-      {{ notification.message }}
-    </div>
+
+      <!-- NOTIFICACIÓN -->
+      <div
+        v-if="notification.visible"
+        :class="['notification', notification.type]"
+      >
+        {{ notification.message }}
+      </div>
 
       <!-- BOTÓN LOGIN -->
-      <button class="btn-login" @click="loginUser">
-        Ingresar
+      <button class="btn-login" @click="loginUser" :disabled="loading">
+        <span v-if="!loading">Ingresar</span>
+        <span v-else class="spinner"></span>
       </button>
 
-     
     </div>
   </div>
 </template>
@@ -59,9 +57,9 @@ export default {
     return {
       email: "",
       password: "",
+      loading: false,
       apiUrl: "http://localhost:5132/api/Auth/login",
 
-      /* SISTEMA DE NOTIFICACIONES */
       notification: {
         visible: false,
         message: "",
@@ -155,6 +153,8 @@ export default {
         return;
       }
 
+      this.loading = true; // 🔥 Activar spinner
+
       try {
         const res = await fetch(this.apiUrl, {
           method: "POST",
@@ -170,6 +170,7 @@ export default {
           errorData = await res.json().catch(() => null);
           console.error("Error Login:", errorData);
 
+          this.loading = false;  
           this.showNotification("Correo o contraseña incorrectos.", "error");
           return;
         }
@@ -190,6 +191,8 @@ export default {
       } catch (error) {
         console.error("Error general de conexión:", error);
         this.showNotification("No se pudo conectar con el servidor.", "error");
+      } finally {
+        this.loading = false; // 🔥 Apagar spinner siempre
       }
     },
   },
@@ -214,7 +217,6 @@ export default {
 
 /* NOTIFICACIONES */
 .notification {
-  
   top: 20px;
   right: 20px;
   padding: 14px 20px;
@@ -320,10 +322,32 @@ input:focus {
   border: none;
   cursor: pointer;
   transition: 0.25s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.btn-login:hover {
-    background: #e2c770;
+.btn-login:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.btn-login:hover:not(:disabled) {
+  background: #e2c770;
   transform: translateY(-2px);
+}
+
+/* 🔥 SPINNER */
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 3px solid #000;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>
