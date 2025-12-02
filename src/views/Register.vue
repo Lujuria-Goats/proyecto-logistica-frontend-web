@@ -20,32 +20,72 @@
 
       <form @submit.prevent="submitForm">
 
+        <!-- GLOBAL NOTIFICATION -->
+        <div
+          v-if="notification.visible"
+          class="notification"
+          :class="notification.type"
+          role="alert"
+          aria-live="polite"
+        >
+          {{ notification.message }}
+        </div>
+
         <label class="input-label">Nombre Completo</label>
         <input
           v-model="form.fullName"
           type="text"
           class="input"
+          :class="{ 'input-error': errors.fullName }"
           placeholder="Juan Pérez"
           required
         />
+        <span v-if="errors.fullName" class="error-text">{{ errors.fullName }}</span>
 
         <label class="input-label">Correo Electrónico</label>
         <input
           v-model="form.email"
           type="email"
           class="input"
+          :class="{ 'input-error': errors.email }"
           placeholder="correo@ejemplo.com"
           required
         />
+        <span v-if="errors.email" class="error-text">{{ errors.email }}</span>
 
         <label class="input-label">Contraseña</label>
         <input
           v-model="form.password"
           type="password"
           class="input"
+          :class="{ 'input-error': errors.password }"
           placeholder="••••••••"
           required
         />
+        <div class="password-rules">
+          <p :class="{ ok: passwordLength }">Mínimo 8 caracteres</p>
+          <p :class="{ ok: passwordUpper }">Al menos una mayúscula</p>
+          <p :class="{ ok: passwordNumber }">Al menos un número</p>
+          <p :class="{ ok: passwordSpecial }">Al menos un carácter especial ($ o &amp;)</p>
+        </div>
+        <span v-if="errors.password" class="error-text">{{ errors.password }}</span>
+
+        <!-- NUEVO CAMPO phoneNumber -->
+        <label class="input-label">Número Telefónico</label>
+        <input
+          v-model="form.phoneNumber"
+          type="text"
+          maxlength="10"
+          class="input"
+          :class="{ 'input-error': errors.phoneNumber }"
+          placeholder="3000000000"
+          @input="validatePhone"
+          required
+        />
+        <p class="phone-hint" :class="{ ok: phoneValid }">
+          {{ form.phoneNumber.length }}/10 dígitos
+        </p>
+        <span v-if="errors.phoneNumber" class="error-text">{{ errors.phoneNumber }}</span>
 
         <div class="role-container">
           <span :class="['role-text', form.role === 'Driver' ? 'active-text' : '']">
@@ -61,7 +101,14 @@
           </span>
         </div>
 
-        <button type="submit" class="btn-register">Registrarme</button>
+        <button
+          type="submit"
+          class="btn-register"
+          :disabled="isLoading || !canSubmit"
+        >
+          <span v-if="isLoading" class="spinner"></span>
+          {{ isLoading ? "Registrando..." : "Registrarme" }}
+        </button>
 
       </form>
 
@@ -70,6 +117,8 @@
 </template>
 
 <script>
+import { registerUser } from "../api/authApi.js";
+
 export default {
   name: "Register",
   data() {
@@ -78,13 +127,60 @@ export default {
         fullName: "",
         email: "",
         password: "",
-        role: "Driver"
+        role: "Driver",
+        phoneNumber: ""
+      },
+      isLoading: false,
+      errors: {
+        fullName: "",
+        email: "",
+        password: "",
+        phoneNumber: ""
       }
+      ,
+      notification: {
+        message: "",
+        type: "", // 'success' | 'error' | 'info'
+        visible: false
+      },
+      notificationTimer: null
     };
   },
+
   computed: {
     themeClass() {
       return this.form.role === "Admin" ? "theme-dark" : "theme-light";
+    },
+
+    /* ===== VALIDACIONES DINÁMICAS ===== */
+    passwordLength() {
+      return this.form.password.length >= 8;
+    },
+    passwordUpper() {
+      return /[A-Z]/.test(this.form.password);
+    },
+    passwordSpecial() {
+      // Checks for at least one of the special characters $ or &
+      return /[$&]/.test(this.form.password);
+    },
+    passwordNumber() {
+      return /\d/.test(this.form.password);
+    },
+    passwordValid() {
+      return this.passwordLength && this.passwordUpper && this.passwordNumber && this.passwordSpecial;
+    },
+
+    phoneValid() {
+      return /^\d{10}$/.test(this.form.phoneNumber);
+    },
+
+    canSubmit() {
+      return (
+        this.form.fullName.trim() &&
+        this.form.email.trim() &&
+        this.passwordValid &&
+        this.phoneValid
+      );
     }
   },
 
@@ -97,11 +193,94 @@ export default {
       this.form.role = this.form.role === "Driver" ? "Admin" : "Driver";
     },
 
-    submitForm() {
-      console.log("Formulario listo para enviar:", this.form);
-      alert("Registro enviado (simulado)");
+    validatePhone() {
+      this.form.phoneNumber = this.form.phoneNumber.replace(/\D/g, "");
     },
 
+    showNotification(message, type = 'error') {
+      // Clear any existing timer
+      if (this.notificationTimer) {
+        clearTimeout(this.notificationTimer);
+        this.notificationTimer = null;
+      }
+
+      this.notification.message = message;
+      this.notification.type = type;
+      this.notification.visible = true;
+
+      // Hide after 5 seconds
+      this.notificationTimer = setTimeout(() => {
+        this.notification.visible = false;
+        this.notification.message = "";
+        this.notification.type = "";
+        this.notificationTimer = null;
+      }, 5000);
+    },
+
+    validateForm() {
+      this.errors = {
+        fullName: "",
+        email: "",
+        password: "",
+        phoneNumber: ""
+      };
+
+      let isValid = true;
+
+      if (!this.form.fullName.trim()) {
+        this.errors.fullName = "El nombre completo es requerido.";
+        isValid = false;
+      }
+
+      if (!this.form.email.trim()) {
+        this.errors.email = "El correo electrónico es requerido.";
+        isValid = false;
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.email)) {
+        this.errors.email = "El correo electrónico no es válido.";
+        isValid = false;
+      }
+
+      if (!this.passwordValid) {
+        this.errors.password = "La contraseña no cumple los requisitos.";
+        isValid = false;
+      }
+
+      if (!this.phoneValid) {
+        this.errors.phoneNumber = "El teléfono debe tener exactamente 10 dígitos.";
+        isValid = false;
+      }
+
+      return isValid;
+    },
+
+    async submitForm() {
+      if (!this.validateForm()) {
+        this.showNotification("❌ Por favor, completa correctamente todos los campos.", "error");
+        return;
+      }
+
+      this.isLoading = true;
+
+      try {
+        const response = await registerUser(this.form);
+
+        this.showNotification("✅ Usuario registrado correctamente. Redirigiendo a login...", "success");
+        // Wait 5s (notification duration) before redirecting to login
+        setTimeout(() => {
+          this.$router.push("/login");
+        }, 5000);
+
+      } catch (error) {
+        this.showNotification("❌ " + (error.message || "Error de conexión con el servidor"), "error");
+        console.error("Registration error:", error);
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    /* =============================
+       ANIMACIÓN DE FONDO
+    ==============================*/
     initAnimatedBG() {
       const canvas = document.getElementById("canvas-bg");
       const ctx = canvas.getContext("2d");
@@ -257,6 +436,44 @@ export default {
   box-shadow: 0 0 8px rgba(212, 175, 55, 0.4);
 }
 
+/* ==========================
+   PASSWORD RULES (COMPACT)
+   - inline, small size
+   - red when not met, green when met
+ ===========================*/
+.password-rules {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  align-items: center;
+  z-index: 3;
+}
+.password-rules p {
+  margin: 0;
+  padding: 4px 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--rule-invalid-color);
+  background: transparent;
+  transition: color 0.15s ease, transform 0.12s ease, background 0.15s ease;
+}
+.password-rules p::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.password-rules p.ok {
+  color: var(--rule-valid-color);
+  transform: translateY(-1px);
+}
+
 /* ROLE SWITCH */
 .role-container {
   margin: 25px 0;
@@ -327,6 +544,8 @@ export default {
   --text-secondary: #A0A0A0;
   --input-bg: #0F0F0F;
   --input-border: #333;
+  --rule-invalid-color: #ff6b6b; /* red for unmet requirements */
+  --rule-valid-color: #4CAF50; /* green for met requirements */
   background: #0F0F0F;
   color: #F5F5F5;
 }
@@ -337,7 +556,80 @@ export default {
   --text-secondary: #555;
   --input-bg: #F0F0F0;
   --input-border: #DDD;
+  --rule-invalid-color: #E53935; /* red for unmet requirements */
+  --rule-valid-color: #4CAF50; /* green for met requirements */
   background: #F5F5F5;
   color: #202020;
+}
+
+/* ERROR STYLES */
+.error-text {
+  display: block;
+  color: #E53935;
+  font-size: 12px;
+  margin-top: 3px;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+/* GLOBAL NOTIFICATION */
+.notification {
+  width: 100%;
+  padding: 10px 14px;
+  color: #fff;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  font-weight: 600;
+  font-size: 13px;
+  display: block;
+  text-align: center;
+  z-index: 3;
+}
+.notification.error {
+  background: linear-gradient(90deg, rgba(229,57,53,1) 0%, rgba(211,47,47,1) 100%);
+}
+.notification.success {
+  background: linear-gradient(90deg, #4caf50 0%, #43a047 100%);
+  color: #fff;
+}
+.notification.info {
+  background: linear-gradient(90deg, #2196f3 0%, #1976d2 100%);
+}
+
+.input-error {
+  border-color: #E53935 !important;
+  box-shadow: 0 0 8px rgba(229, 57, 53, 0.3) !important;
+}
+
+.input-error:focus {
+  border-color: #E53935 !important;
+  box-shadow: 0 0 8px rgba(229, 57, 53, 0.4) !important;
+}
+
+/* BUTTON DISABLED STATE */
+.btn-register:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-register:disabled:hover {
+  transform: none;
+}
+
+/* SPINNER */
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(0, 0, 0, 0.3);
+  border-top-color: #000;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>

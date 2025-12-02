@@ -9,9 +9,13 @@
       ⬅ Volver
     </button>
 
+    <!-- NOTIFICACIÓN -->
+    
+
     <div class="card">
       <h2 class="title">Iniciar Sesión</h2>
       <p class="subtitle">Accede a Apex Vision y continúa tu operación.</p>
+      
 
       <!-- INPUTS -->
       <div class="form-group">
@@ -31,11 +35,19 @@
           placeholder="********"
         />
       </div>
+       <div
+      v-if="notification.visible"
+      :class="['notification', notification.type]"
+    >
+      {{ notification.message }}
+    </div>
 
       <!-- BOTÓN LOGIN -->
-      <button class="btn-login" @click="$router.push('/admin/dashboard')">
+      <button class="btn-login" @click="loginUser">
         Ingresar
       </button>
+
+     
     </div>
   </div>
 </template>
@@ -47,6 +59,15 @@ export default {
     return {
       email: "",
       password: "",
+      apiUrl: "http://localhost:5132/api/Auth/login",
+
+      /* SISTEMA DE NOTIFICACIONES */
+      notification: {
+        visible: false,
+        message: "",
+        type: "success",
+        timer: null,
+      },
     };
   },
 
@@ -55,6 +76,25 @@ export default {
   },
 
   methods: {
+    /* ------------------------------
+       NOTIFICACIONES
+    --------------------------------*/
+    showNotification(message, type = "success") {
+      if (this.notification.timer) clearTimeout(this.notification.timer);
+
+      this.notification = {
+        visible: true,
+        message,
+        type,
+        timer: setTimeout(() => {
+          this.notification.visible = false;
+        }, 3500),
+      };
+    },
+
+    /* ------------------------------
+       ANIMACIÓN FONDO
+    --------------------------------*/
     initAnimatedBG() {
       const canvas = document.getElementById("canvas-bg");
       const ctx = canvas.getContext("2d");
@@ -67,7 +107,6 @@ export default {
       resize();
       window.addEventListener("resize", resize);
 
-      // CONFIG DEL CODEPEN
       const numDots = 90;
       const dots = [];
 
@@ -95,22 +134,63 @@ export default {
 
       for (let i = 0; i < numDots; i++) dots.push(new Dot());
 
-      function animate() {
+      const animate = () => {
         ctx.clearRect(0, 0, w, h);
         dots.forEach((d) => {
           d.move();
           d.draw();
         });
         requestAnimationFrame(animate);
-      }
+      };
+
       animate();
     },
 
-    loginUser() {
-      console.log({
-        email: this.email,
-        password: this.password,
-      });
+    /* ------------------------------
+       LOGIN
+    --------------------------------*/
+    async loginUser() {
+      if (!this.email || !this.password) {
+        this.showNotification("Llena todos los campos.", "error");
+        return;
+      }
+
+      try {
+        const res = await fetch(this.apiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: this.email,
+            password: this.password,
+          }),
+        });
+
+        let errorData = null;
+        if (!res.ok) {
+          errorData = await res.json().catch(() => null);
+          console.error("Error Login:", errorData);
+
+          this.showNotification("Correo o contraseña incorrectos.", "error");
+          return;
+        }
+
+        const data = await res.json();
+        console.log("Respuesta login:", data);
+
+        if (data.token) {
+          localStorage.setItem("token", data.token);
+        }
+
+        this.showNotification("Inicio de sesión exitoso ✔", "success");
+
+        setTimeout(() => {
+          this.$router.push("/admin/dashboard");
+        }, 900);
+
+      } catch (error) {
+        console.error("Error general de conexión:", error);
+        this.showNotification("No se pudo conectar con el servidor.", "error");
+      }
     },
   },
 };
@@ -120,16 +200,43 @@ export default {
 :root {
   --gold: #d4af37;
   --gold-dark: #b8952f;
-  --text-dark: #222;
   --light-gray: #e8e8e8;
+  --text-dark: #222;
 }
 
-/* CANVAS DE FONDO */
+/* CANVAS FONDO */
 #canvas-bg {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: #000; /* Fondo negro igual al CodePen */
+  background: #000;
+}
+
+/* NOTIFICACIONES */
+.notification {
+  
+  top: 20px;
+  right: 20px;
+  padding: 14px 20px;
+  border-radius: 14px;
+  font-weight: 600;
+  color: white;
+  z-index: 9999;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  animation: fadeIn 0.25s ease-out;
+}
+
+.notification.success {
+  background: #28a745;
+}
+
+.notification.error {
+  background: #e63946;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* CONTENEDOR */
@@ -139,7 +246,6 @@ export default {
   justify-content: center;
   align-items: center;
   position: relative;
-  overflow: hidden;
 }
 
 /* BOTÓN VOLVER */
@@ -147,20 +253,15 @@ export default {
   position: absolute;
   top: 20px;
   left: 20px;
-  color: rgb(0, 0, 0);
+  color: #000;
   border-radius: 10px;
   border: none;
-  background: #ffffff;
+  background: #fff;
   box-shadow: 0px 0px 3px #D4AF37;
   padding: 8px 12px;
   font-size: 0.95rem;
   cursor: pointer;
-  transition: 0.2s;
   z-index: 2;
-}
-
-.btn-back:hover {
-  color: #000;
 }
 
 /* CARD */
@@ -170,8 +271,8 @@ export default {
   padding: 40px 35px;
   border-radius: 20px;
   box-shadow: 0px 8px 25px rgba(0, 0, 0, 0.15);
-  text-align: center;
   z-index: 2;
+  text-align: center;
 }
 
 /* TITULOS */
@@ -179,24 +280,17 @@ export default {
   font-size: 1.9rem;
   font-weight: 800;
   color: var(--text-dark);
-  margin-bottom: 5px;
 }
 
 .subtitle {
-  font-size: 0.95rem;
-  color: #777;
   margin-bottom: 32px;
+  color: #777;
 }
 
 /* INPUTS */
 .form-group {
-  text-align: left;
   margin-bottom: 20px;
-}
-
-label {
-  font-size: 0.9rem;
-  color: #555;
+  text-align: left;
 }
 
 input {
@@ -207,32 +301,29 @@ input {
   border-radius: 10px;
   border: 1px solid #ddd;
   background: var(--light-gray);
-  transition: 0.2s;
 }
 
 input:focus {
   outline: none;
   border-color: var(--gold);
-  background: #f0efe9;
 }
 
 /* BOTÓN LOGIN */
 .btn-login {
+  margin-top: 10px;
   width: 100%;
   background: #D4AF37;
   color: #000;
   padding: 12px;
-  margin-top: 8px;
   border-radius: 12px;
   font-size: 1.1rem;
   border: none;
   cursor: pointer;
-  font-weight: 600;
   transition: 0.25s;
 }
 
 .btn-login:hover {
-  background: var(--gold-dark);
+    background: #e2c770;
   transform: translateY(-2px);
 }
 </style>
