@@ -15,14 +15,14 @@
 
         <!-- 📌 MENÚ LATERAL -->
         <aside :class="['sidebar', sidebarOpen ? 'open' : '']">
-            <section class="d-grid gap-5" >
-                <!-- LOGO (menos padding y menos margen) -->
+            <section class="d-grid gap-5">
+                <!-- LOGO -->
                 <div class="logo-area">
                     <img src="../assets/logo.png" alt="Apex Vision" class="logo" />
-                    <h2 class="brand">Apex Vision</h2>
+                    <!-- <h2 class="brand">Apex Vision</h2> -->
                 </div>
 
-                <!-- Divider súper ajustado -->
+                <!-- Divider -->
                 <div class="sidebar-divider"></div>
 
                 <!-- MENU COMPACTO -->
@@ -31,7 +31,8 @@
                         Dashboard</router-link>
                     <router-link to="/admin/drivers" class="menu-item" active-class="active">🚚
                         Transportadores</router-link>
-                    <router-link to="/admin/assignRoutes" class="menu-item" active-class="active">🗺️ Asignar rutas</router-link>
+                    <router-link to="/admin/assignRoutes" class="menu-item" active-class="active">🗺️ Asignar
+                        rutas</router-link>
                     <router-link to="/admin/settings" class="menu-item" active-class="active">
                         🔔 Notificaciones</router-link>
                     <router-link to="/admin/settings" class="menu-item" active-class="active">⚙️
@@ -44,7 +45,12 @@
                 <img :src="avatarUrl" class="avatar" />
                 <div class="user-info">
                     <p class="name">{{ fullName }}</p>
-                    <button class="logout" @click="logout">Cerrar sesión</button>
+                    <p class="role">{{ userRoleTranslated }}</p>
+                    
+                    <!-- BOTÓN DE CERRAR SESIÓN MEJORADO -->
+                    <button class="logout-btn" @click="logout">
+                        <span class="icon">⏻</span> Cerrar sesión
+                    </button>
                 </div>
             </div>
 
@@ -64,15 +70,55 @@ export default {
 
     data() {
         return {
-            fullName: "Juan Pérez",
+            fullName: "Cargando...",
+            userRoleTranslated: "",
             avatarUrl: `https://api.dicebear.com/7.x/adventurer/svg?seed=${Math.random()}`,
             sidebarOpen: false
         };
     },
 
+    created() {
+        this.loadUserFromToken();
+    },
+
     methods: {
         toggleSidebar() {
             this.sidebarOpen = !this.sidebarOpen;
+        },
+
+        loadUserFromToken() {
+            const token = localStorage.getItem("token");
+            if (token) {
+                try {
+                    // Decodificar JWT
+                    const base64Url = token.split('.')[1];
+                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                    const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
+                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                    }).join(''));
+
+                    const payload = JSON.parse(jsonPayload);
+
+                    // Nombre (Email)
+                    this.fullName = payload.email || "Usuario";
+
+                    // Traducir Rol
+                    const rawRole = payload.role || "";
+                    if (rawRole === "Admin") {
+                        this.userRoleTranslated = "Despachador";
+                    } else if (rawRole === "Driver") {
+                        this.userRoleTranslated = "Conductor";
+                    } else {
+                        this.userRoleTranslated = rawRole || "Usuario";
+                    }
+
+                } catch (error) {
+                    console.error("Error leyendo token:", error);
+                    this.fullName = "Invitado";
+                }
+            } else {
+                this.fullName = "Invitado";
+            }
         },
 
         logout() {
@@ -85,7 +131,7 @@ export default {
 
 <style scoped>
 /* ========================= */
-/* 🟡 HAMBURGUESA */
+/* ESTILOS GENERALES */
 /* ========================= */
 .hamburger {
     display: none;
@@ -103,9 +149,6 @@ export default {
     backdrop-filter: blur(4px);
 }
 
-/* ========================= */
-/* 🔘 OVERLAY */
-/* ========================= */
 .overlay {
     position: fixed;
     inset: 0;
@@ -114,9 +157,6 @@ export default {
     z-index: 900;
 }
 
-/* ========================= */
-/* ✨ FONDO ANIMADO PREMIUM */
-/* ========================= */
 .animated-bg {
     position: fixed;
     inset: 0;
@@ -126,15 +166,8 @@ export default {
 }
 
 @keyframes bgPulse {
-    0% {
-        transform: scale(1);
-        filter: brightness(1);
-    }
-
-    100% {
-        transform: scale(1.15);
-        filter: brightness(1.35);
-    }
+    0% { transform: scale(1); filter: brightness(1); }
+    100% { transform: scale(1.15); filter: brightness(1.35); }
 }
 
 .gold-glow {
@@ -146,18 +179,10 @@ export default {
 }
 
 @keyframes glowMove {
-    0% {
-        transform: scale(1);
-        opacity: 0.6;
-    }
-
-    100% {
-        transform: scale(1.2);
-        opacity: 1;
-    }
+    0% { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(1.2); opacity: 1; }
 }
 
-/* CONTENEDOR */
 .layout-container {
     display: flex;
     height: 100vh;
@@ -165,27 +190,20 @@ export default {
     font-family: 'Inter', sans-serif;
 }
 
-/* ========================= */
-/* 📌 SIDEBAR */
-/* ========================= */
 .sidebar {
     width: 260px;
     padding: 15px 24px;
-
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-
     backdrop-filter: blur(12px);
     background: rgba(8, 8, 8, 0.85);
     border-right: 1px solid rgba(212, 175, 55, 0.18);
-
     position: relative;
     z-index: 950;
     transition: transform 0.35s ease;
 }
 
-/* Animación móvil */
 .sidebar.open {
     transform: translateX(0);
 }
@@ -204,18 +222,15 @@ export default {
     }
 }
 
-/* LOGO SUPER COMPACTO */
 .logo-area {
     text-align: center;
     margin-bottom: 4px !important;
-    /* casi nada */
     padding-bottom: 0;
 }
 
 .logo {
     border-radius: 20px;
-    width: 130px;
-    margin-bottom: 2px;
+    width: 190px;
     filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.1));
 }
 
@@ -227,16 +242,13 @@ export default {
     letter-spacing: 1px;
 }
 
-/* DIVIDER CERCANO */
 .sidebar-divider {
     width: 100%;
     height: 1px;
     background: linear-gradient(to right, transparent, rgba(212, 175, 55, 0.3), transparent);
     margin: 6px 0;
-    /* súper corto */
 }
 
-/* MENÚ COMPACTADO */
 .menu {
     margin-top: 0;
     display: flex;
@@ -273,7 +285,7 @@ export default {
 .user-box {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     padding: 14px;
     background: rgba(255, 255, 255, 0.04);
     border-radius: 14px;
@@ -285,32 +297,67 @@ export default {
     height: 44px;
     border-radius: 50%;
     border: 2px solid rgba(212, 175, 55, 0.4);
+    flex-shrink: 0;
 }
 
 .user-info {
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    flex: 1;
 }
 
 .name {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
+    margin: 0;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    max-width: 140px;
+    color: #f0f0f0;
 }
 
-.logout {
-    margin-top: 3px;
-    font-size: 13px;
-    background: none;
-    border: none;
+.role {
+    font-size: 11px;
     color: #D4AF37;
+    margin: 2px 0 6px 0;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ========================= */
+/* 🔴 BOTÓN LOGOUT MEJORADO */
+/* ========================= */
+.logout-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #bbb;
+    padding: 5px 10px;
+    border-radius: 6px;
     cursor: pointer;
+    transition: all 0.2s ease;
+    width: fit-content;
 }
 
-.logout:hover {
-    text-decoration: underline;
+.logout-btn .icon {
+    font-size: 10px;
+    margin-top: 1px;
 }
 
-/* CONTENT */
+.logout-btn:hover {
+    background: rgba(212, 55, 55, 0.15); /* Rojo suave de fondo */
+    border-color: rgba(212, 55, 55, 0.4); /* Borde rojo */
+    color: #ff8888; /* Texto rojo claro */
+    transform: translateX(2px);
+}
+
 .content {
     flex: 1;
     padding: 40px;

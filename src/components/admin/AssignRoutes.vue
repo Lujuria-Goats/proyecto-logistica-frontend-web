@@ -40,10 +40,7 @@
                 <!-- MAPA -->
                 <div class="map-section">
                   <div ref="mapContainer" class="map-container"></div>
-
-                  <!-- Mensaje de error (Badge rojo) -->
                   <div v-if="errorMessage" class="error-badge">{{ errorMessage }}</div>
-
                   <div class="map-instructions">
                     <small>📍 Clic en el mapa para fijar punto exacto</small>
                   </div>
@@ -57,8 +54,10 @@
                       @keydown.down.prevent="navigateSuggestions(1)" @keydown.up.prevent="navigateSuggestions(-1)"
                       @keydown.enter.prevent="handleEnterKey" />
 
-                    <!-- Spinner pequeño dentro del input si está validando -->
-                    <div v-if="isSearching" class="input-spinner"></div>
+                    <!-- Loader Mini en el Input (Escalado) -->
+                    <div v-if="isSearching" class="input-loader-wrapper">
+                      <span class="loader"></span>
+                    </div>
 
                     <ul v-if="suggestions.length > 0" class="suggestions-list">
                       <li v-for="(item, index) in suggestions" :key="item.id" class="suggestion-item"
@@ -75,7 +74,6 @@
                     </ul>
                   </div>
 
-                  <!-- Botón cambiado a "Agregar" con validación -->
                   <button class="btn-assign-small" @click="handleEnterKey" :disabled="isSearching">
                     {{ isSearching ? '...' : 'Agregar' }}
                   </button>
@@ -92,9 +90,17 @@
                   <transition-group name="list">
                     <div v-for="(route, index) in routes" :key="route.id" class="route-item">
                       <div class="route-content">
-                        <span class="route-icon" :class="{ 'spinning': route.loading }">
-                          {{ route.loading ? '🔄' : (route.isPoi ? '🏢' : '📍') }}
-                        </span>
+
+                        <!-- Icono o Loader Mini -->
+                        <div class="icon-wrapper">
+                          <div v-if="route.loading" class="list-loader-wrapper">
+                            <span class="loader"></span>
+                          </div>
+                          <span v-else class="route-emoji">
+                            {{ route.isPoi ? '🏢' : '📍' }}
+                          </span>
+                        </div>
+
                         <div class="route-texts">
                           <span class="route-main-text">{{ route.text }}</span>
                           <small v-if="route.coords" class="route-sub-text">
@@ -119,12 +125,18 @@
         </div>
       </transition>
 
-      <!-- MODAL DE CARGA (SAVING) -->
+      <!-- MODAL DE CARGA (GUARDANDO) -->
       <transition name="fade">
         <div v-if="isSaving" class="saving-overlay">
           <div class="saving-card">
-            <div v-if="!saveSuccess" class="spinner-large"></div>
+
+            <!-- LOADER ORIGINAL (Tamaño completo) -->
+            <div v-if="!saveSuccess" class="loader-container-center">
+              <span class="loader"></span>
+            </div>
+
             <div v-else class="success-icon">✅</div>
+
             <h3 class="saving-title">
               {{ saveSuccess ? '¡Ruta Asignada!' : 'Asignando ruta...' }}
             </h3>
@@ -150,7 +162,7 @@ export default {
       showModal: false,
       isSaving: false,
       saveSuccess: false,
-      isSearching: false, // Nuevo estado para bloqueo mientras busca
+      isSearching: false,
       errorMessage: "",
       selectedDriver: null,
 
@@ -254,7 +266,6 @@ export default {
     onSearchInput() {
       clearTimeout(this.searchTimeout);
       this.highlightIndex = -1;
-      // Reiniciamos errores al escribir
       if (this.errorMessage.includes("no encontrada")) this.errorMessage = "";
 
       if (this.searchQuery.length < 3) {
@@ -266,7 +277,6 @@ export default {
       }, 350);
     },
 
-    // Función auxiliar para limpiar la query (se usa en sugerencias y validación)
     getCleanedQuery(query) {
       let cleaned = query.toLowerCase()
         .replace(/\b(cll|clle|c)\b/g, 'calle')
@@ -311,44 +321,36 @@ export default {
       this.searchQuery = "";
     },
 
-    /* MANEJO DEL ENTER / BOTÓN AGREGAR */
+    /* MANEJO ENTER */
     async handleEnterKey() {
-      // 1. Si hay sugerencia resaltada con flechas, úsala
       if (this.highlightIndex >= 0 && this.suggestions[this.highlightIndex]) {
         this.selectSuggestion(this.suggestions[this.highlightIndex]);
         return;
       }
-
-      // 2. Si no hay texto, no hacer nada
       if (!this.searchQuery.trim()) return;
 
-      // 3. VALIDACIÓN ESTRICTA: Consultar API para ver si lo escrito existe
-      this.isSearching = true; // Activa spinner
-      this.suggestions = [];   // Oculta lista
+      this.isSearching = true;
+      this.suggestions = [];
 
       const cleanedQuery = this.getCleanedQuery(this.searchQuery);
       const bboxString = `${this.boundsSW[0]},${this.boundsSW[1]},${this.boundsNE[0]},${this.boundsNE[1]}`;
       const center = this.mapInstance ? this.mapInstance.getCenter() : { lng: -75.56, lat: 6.25 };
 
       try {
-        // Hacemos fetch exacto
         const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(cleanedQuery)}.json?access_token=${this.mapboxAccessToken}&bbox=${bboxString}&proximity=${center.lng},${center.lat}&country=co&limit=1&types=address,poi`;
-
         const response = await fetch(url);
         const data = await response.json();
 
         if (data.features && data.features.length > 0) {
-          // ÉXITO: Encontramos la dirección
           const feature = data.features[0];
           this.selectSuggestion(feature);
         } else {
-          // ERROR: No existe
           this.showError("🚫 Dirección no encontrada en el Área Metropolitana");
         }
       } catch (e) {
         this.showError("⚠️ Error de conexión");
       } finally {
-        this.isSearching = false; // Apaga spinner
+        this.isSearching = false;
       }
     },
 
@@ -424,7 +426,6 @@ export default {
       setTimeout(() => { this.errorMessage = ""; }, 3000);
     },
 
-    // Format helpers
     formatSuggestion(fullName) { return fullName.split(',')[0]; },
     getCityFromSuggestion(fullName) {
       const parts = fullName.split(',');
@@ -665,17 +666,13 @@ export default {
   cursor: not-allowed;
 }
 
-/* Spinner pequeño en input */
-.input-spinner {
+/* Loader Mini (Escalado para Input) */
+.input-loader-wrapper {
   position: absolute;
   right: 12px;
-  top: 12px;
-  width: 16px;
-  height: 16px;
-  border: 2px solid #d4af37;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  top: 8px;
+  transform: scale(0.4);
+  /* Hacemos el loader pequeño */
 }
 
 .suggestions-list {
@@ -787,21 +784,25 @@ export default {
   overflow: hidden;
 }
 
-.route-icon {
+/* Icon Wrapper para el loader en la lista */
+.icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.list-loader-wrapper {
+  transform: scale(0.4);
+  /* Loader pequeño en lista */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.route-emoji {
   font-size: 1.2rem;
-  min-width: 24px;
-}
-
-.spinning {
-  animation: spin 1s linear infinite;
-  display: inline-block;
-  opacity: 0.7;
-}
-
-@keyframes spin {
-  100% {
-    transform: rotate(360deg);
-  }
 }
 
 .route-texts {
@@ -900,14 +901,10 @@ export default {
   color: #888;
 }
 
-.spinner-large {
-  width: 60px;
-  height: 60px;
-  border: 4px solid rgba(212, 175, 55, 0.3);
-  border-top-color: #d4af37;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto;
+.loader-container-center {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
 }
 
 .success-icon {
@@ -927,6 +924,95 @@ export default {
   }
 }
 
+/* TU LOADER CSS */
+.loader {
+  transform: rotateZ(45deg);
+  perspective: 1000px;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  color: #fff;
+  display: inline-block;
+  /* Asegura que se comporte como bloque */
+}
+
+.loader:before,
+.loader:after {
+  content: '';
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: inherit;
+  height: inherit;
+  border-radius: 50%;
+  transform: rotateX(70deg);
+  animation: 1s spin linear infinite;
+}
+
+.loader:after {
+  color: #f3ca45;
+  transform: rotateY(70deg);
+  animation-delay: .4s;
+}
+
+@keyframes rotate {
+  0% {
+    transform: translate(-50%, -50%) rotateZ(0deg);
+  }
+
+  100% {
+    transform: translate(-50%, -50%) rotateZ(360deg);
+  }
+}
+
+@keyframes rotateccw {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+
+  100% {
+    transform: translate(-50%, -50%) rotate(-360deg);
+  }
+}
+
+@keyframes spin {
+
+  0%,
+  100% {
+    box-shadow: .2em 0px 0 0px currentcolor;
+  }
+
+  12% {
+    box-shadow: .2em .2em 0 0 currentcolor;
+  }
+
+  25% {
+    box-shadow: 0 .2em 0 0px currentcolor;
+  }
+
+  37% {
+    box-shadow: -.2em .2em 0 0 currentcolor;
+  }
+
+  50% {
+    box-shadow: -.2em 0 0 0 currentcolor;
+  }
+
+  62% {
+    box-shadow: -.2em -.2em 0 0 currentcolor;
+  }
+
+  75% {
+    box-shadow: 0px -.2em 0 0 currentcolor;
+  }
+
+  87% {
+    box-shadow: .2em -.2em 0 0 currentcolor;
+  }
+}
+
+/* Transiciones */
 .list-enter-active,
 .list-leave-active {
   transition: all 0.4s ease;
