@@ -53,15 +53,37 @@
         />
         <span v-if="errors.email" class="error-text">{{ errors.email }}</span>
 
+        <!-- CONTRASEÑA CON OJITO -->
         <label class="input-label">Contraseña</label>
-        <input
-          v-model="form.password"
-          type="password"
-          class="input"
-          :class="{ 'input-error': errors.password }"
-          placeholder="••••••••"
-          required
-        />
+        <div class="password-wrapper">
+          <input
+            v-model="form.password"
+            :type="showPassword ? 'text' : 'password'"
+            class="input input-pass"
+            :class="{ 'input-error': errors.password }"
+            placeholder="••••••••"
+            required
+          />
+          <button 
+            type="button" 
+            class="toggle-pass-btn" 
+            @click="showPassword = !showPassword"
+            tabindex="-1"
+          >
+            <!-- ÍCONO OJO CERRADO (Mostrar contraseña) -->
+            <svg v-if="!showPassword" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+            
+            <!-- ÍCONO OJO ABIERTO (Ocultar contraseña) -->
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
+
         <div class="password-rules">
           <p :class="{ ok: passwordLength }">Mínimo 8 caracteres</p>
           <p :class="{ ok: passwordUpper }">Al menos una mayúscula</p>
@@ -70,7 +92,7 @@
         </div>
         <span v-if="errors.password" class="error-text">{{ errors.password }}</span>
 
-        <!-- NUEVO CAMPO phoneNumber -->
+        <!-- CAMPO phoneNumber -->
         <label class="input-label">Número Telefónico</label>
         <input
           v-model="form.phoneNumber"
@@ -110,6 +132,12 @@
           {{ isLoading ? "Registrando..." : "Registrarme" }}
         </button>
 
+        <!-- LINK LOGIN -->
+        <div class="login-link">
+          ¿Ya tienes cuenta? 
+          <router-link to="/login">Inicia sesión</router-link>
+        </div>
+
       </form>
 
     </div>
@@ -130,6 +158,7 @@ export default {
         role: "Driver",
         phoneNumber: ""
       },
+      showPassword: false, // Control del ojito
       isLoading: false,
       errors: {
         fullName: "",
@@ -160,7 +189,6 @@ export default {
       return /[A-Z]/.test(this.form.password);
     },
     passwordSpecial() {
-      // Checks for at least one of the special characters $ or &
       return /[$&]/.test(this.form.password);
     },
     passwordNumber() {
@@ -198,7 +226,6 @@ export default {
     },
 
     showNotification(message, type = 'error') {
-      // Clear any existing timer
       if (this.notificationTimer) {
         clearTimeout(this.notificationTimer);
         this.notificationTimer = null;
@@ -208,7 +235,6 @@ export default {
       this.notification.type = type;
       this.notification.visible = true;
 
-      // Hide after 5 seconds
       this.notificationTimer = setTimeout(() => {
         this.notification.visible = false;
         this.notification.message = "";
@@ -265,7 +291,6 @@ export default {
         const response = await registerUser(this.form);
 
         this.showNotification("✅ Usuario registrado correctamente. Redirigiendo a login...", "success");
-        // Wait 5s (notification duration) before redirecting to login
         setTimeout(() => {
           this.$router.push("/login");
         }, 5000);
@@ -436,10 +461,39 @@ export default {
   box-shadow: 0 0 8px rgba(212, 175, 55, 0.4);
 }
 
+/* WRAPPER PARA INPUT DE CONTRASEÑA Y OJITO */
+.password-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.input-pass {
+  padding-right: 40px; /* Espacio para el ícono */
+}
+
+/* BOTÓN OJITO */
+.toggle-pass-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary); /* Se adapta al tema (oscuro/claro) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.toggle-pass-btn:hover {
+  color: #D4AF37;
+}
+
 /* ==========================
    PASSWORD RULES (COMPACT)
-   - inline, small size
-   - red when not met, green when met
  ===========================*/
 .password-rules {
   display: flex;
@@ -472,6 +526,18 @@ export default {
 .password-rules p.ok {
   color: var(--rule-valid-color);
   transform: translateY(-1px);
+}
+
+/* PHONE HINT */
+.phone-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: right;
+  margin-top: 4px;
+  transition: color 0.3s;
+}
+.phone-hint.ok {
+  color: var(--rule-valid-color);
 }
 
 /* ROLE SWITCH */
@@ -537,6 +603,23 @@ export default {
   box-shadow: 0 8px 15px rgba(212,175,55,0.4);
 }
 
+/* LOGIN LINK */
+.login-link {
+  margin-top: 24px;
+  font-size: 0.95rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+.login-link a {
+  color: #D4AF37;
+  font-weight: 700;
+  text-decoration: none;
+  margin-left: 5px;
+}
+.login-link a:hover {
+  text-decoration: underline;
+}
+
 /* TEMAS */
 .theme-dark {
   --card-bg: #1A1A1A;
@@ -544,8 +627,8 @@ export default {
   --text-secondary: #A0A0A0;
   --input-bg: #0F0F0F;
   --input-border: #333;
-  --rule-invalid-color: #ff6b6b; /* red for unmet requirements */
-  --rule-valid-color: #4CAF50; /* green for met requirements */
+  --rule-invalid-color: #ff6b6b;
+  --rule-valid-color: #4CAF50;
   background: #0F0F0F;
   color: #F5F5F5;
 }
@@ -556,8 +639,8 @@ export default {
   --text-secondary: #555;
   --input-bg: #F0F0F0;
   --input-border: #DDD;
-  --rule-invalid-color: #E53935; /* red for unmet requirements */
-  --rule-valid-color: #4CAF50; /* green for met requirements */
+  --rule-invalid-color: #E53935;
+  --rule-valid-color: #4CAF50;
   background: #F5F5F5;
   color: #202020;
 }

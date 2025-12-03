@@ -13,7 +13,7 @@
       <h2 class="title">Iniciar Sesión</h2>
       <p class="subtitle">Accede a Apex Vision y continúa tu operación.</p>
 
-      <!-- INPUTS -->
+      <!-- INPUT CORREO -->
       <div class="form-group">
         <label>Correo Electrónico</label>
         <input
@@ -23,13 +23,40 @@
         />
       </div>
 
+      <!-- INPUT CONTRASEÑA CON OJITO -->
       <div class="form-group">
         <label>Contraseña</label>
-        <input
-          v-model="password"
-          type="password"
-          placeholder="********"
-        />
+        <div class="password-wrapper">
+          <input
+            v-model="password"
+            :type="showPassword ? 'text' : 'password'"
+            placeholder="********"
+            class="input-pass"
+          />
+          <button 
+            type="button" 
+            class="toggle-pass-btn" 
+            @click="showPassword = !showPassword"
+            tabindex="-1"
+          >
+            <!-- ÍCONO OJO CERRADO (Mostrar contraseña) -->
+            <svg v-if="!showPassword" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+            
+            <!-- ÍCONO OJO ABIERTO (Ocultar contraseña) -->
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- LINK OLVIDASTE CONTRASEÑA -->
+      <div class="forgot-pass">
+        <a href="#">¿Olvidaste tu contraseña?</a>
       </div>
 
       <!-- NOTIFICACIÓN -->
@@ -46,6 +73,12 @@
         <span v-else class="spinner"></span>
       </button>
 
+      <!-- LINK REGISTRO -->
+      <div class="register-link">
+        ¿No tienes cuenta? 
+        <router-link to="/register">Regístrate</router-link>
+      </div>
+
     </div>
   </div>
 </template>
@@ -57,8 +90,9 @@ export default {
     return {
       email: "",
       password: "",
+      showPassword: false, // Variable para controlar el ojito
       loading: false,
-      apiUrl: "http://localhost:5132/api/Auth/login",
+      apiUrl: "https://service.lujuria.crudzaso.com/api/Auth/login",
 
       notification: {
         visible: false,
@@ -329,6 +363,7 @@ input {
   border-radius: 10px;
   border: 1px solid #ddd;
   background: var(--light-gray);
+  transition: all 0.2s;
 }
 
 input:focus {
@@ -336,9 +371,55 @@ input:focus {
   border-color: var(--gold);
 }
 
+/* WRAPPER PARA INPUT DE CONTRASEÑA Y OJITO */
+.password-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.input-pass {
+  padding-right: 40px; /* Espacio para el ícono */
+}
+
+/* BOTÓN OJITO */
+.toggle-pass-btn {
+  position: absolute;
+  right: 12px;
+  bottom: 12px; /* Alineado verticalmente considerando el padding del input */
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #777;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.toggle-pass-btn:hover {
+  color: var(--gold-dark);
+}
+
+/* OLVIDASTE CONTRASEÑA */
+.forgot-pass {
+  text-align: right;
+  margin-top: -10px;
+  margin-bottom: 20px;
+}
+.forgot-pass a {
+  color: #777;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: 0.2s;
+}
+.forgot-pass a:hover {
+  color: #D4AF37;
+}
+
 /* BOTÓN LOGIN */
 .btn-login {
-  margin-top: 10px;
+  margin-top: 0px;
   width: 100%;
   background: #D4AF37;
   color: #000;
@@ -361,6 +442,22 @@ input:focus {
 .btn-login:hover:not(:disabled) {
   background: #e2c770;
   transform: translateY(-2px);
+}
+
+/* REGISTRATE */
+.register-link {
+  margin-top: 24px;
+  font-size: 0.95rem;
+  color: #666;
+}
+.register-link a {
+  color: #D4AF37;
+  font-weight: 700;
+  text-decoration: none;
+  margin-left: 5px;
+}
+.register-link a:hover {
+  text-decoration: underline;
 }
 
 /* 🔥 SPINNER */

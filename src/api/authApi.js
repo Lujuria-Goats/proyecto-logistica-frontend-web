@@ -3,7 +3,7 @@
  * Maneja comunicación con el backend en /api/Auth
  */
 
-const API_BASE_URL = "http://localhost:5132/api";
+const API_BASE_URL = "https://service.lujuria.crudzaso.com/api";
 
 /**
  * Registra un nuevo usuario

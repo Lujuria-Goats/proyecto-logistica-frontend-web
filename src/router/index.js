@@ -6,6 +6,7 @@ import Dashboard from "../components/admin/Dashboard.vue";
 import Drivers from '../components/admin/Drivers.vue';
 import AssignRoutes from '../components/admin/AssignRoutes.vue';
 import Settings from '../components/admin/Settings.vue';
+import Notifications from '../components/admin/Notifications.vue';
 
 const routes = [
   {
@@ -34,7 +35,9 @@ const routes = [
       { path: 'dashboard', name: 'Dashboard', component: Dashboard },
       { path: 'drivers', name: 'Drivers', component: Drivers },
       { path: 'assignRoutes', name: 'AssignRoutes', component: AssignRoutes },
-      { path: 'settings', name: 'Settings', component: Settings }
+      { path: 'settings', name: 'Settings', component: Settings },
+      { path: 'notifications', name: 'Notifications', component: Notifications }
+
     ]
   },
 

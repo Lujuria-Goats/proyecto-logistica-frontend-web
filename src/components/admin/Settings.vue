@@ -1,293 +1,208 @@
 <template>
-  <div class="settings-page text-white">
-    <div class="bg-decor" aria-hidden="true"></div>
+  <div class="settings-container">
 
-    <h1 class="title">Configuración de la Empresa</h1>
+    <!-- FONDO ANIMADO -->
+    <div class="settings-bg"></div>
+    <div class="settings-gold"></div>
 
-    <div class="container settings-container">
+    <!-- HEADER -->
+    <header class="settings-header">
+      <h1 class="title">Configuración de la Cuenta</h1>
+      <p class="subtitle">Gestiona tu información personal y seguridad</p>
+    </header>
 
-      <!-- 🏢 Información de la Empresa -->
-      <section class="card-section fade-in-up">
-        <h3>Información de la Empresa</h3>
+    <!-- SECCIONES -->
+    <section class="settings-grid">
 
-        <div class="form-grid">
-          <div class="input-group">
-            <label>Nombre de la Empresa</label>
-            <input type="text" v-model="company.name" />
-          </div>
+      <!-- 🔹 INFORMACIÓN GENERAL -->
+      <div class="settings-card">
+        <h2 class="section-title">Información de la Cuenta</h2>
 
-          <div class="input-group">
-            <label>NIT / Identificación</label>
-            <input type="text" v-model="company.nit" />
-          </div>
-
-          <div class="input-group">
-            <label>Teléfono</label>
-            <input type="text" v-model="company.phone" />
-          </div>
-
-          <div class="input-group">
-            <label>Correo Empresarial</label>
-            <input type="text" v-model="company.email" />
-          </div>
-
-          <div class="input-group full">
-            <label>Dirección</label>
-            <input type="text" v-model="company.address" />
-          </div>
-        </div>
-      </section>
-
-      <!-- 🖼️ Logo de la Empresa -->
-      <section class="card-section fade-in-up">
-        <h3>Logo de la Empresa</h3>
-
-        <div class="logo-area">
-          <img
-            v-if="company.logo"
-            :src="company.logo"
-            alt="Logo"
-            class="company-logo"
-          />
-          <div v-else class="logo-placeholder">Sin Logo</div>
-
-          <input type="file" @change="uploadLogo" />
-        </div>
-      </section>
-
-      <!-- ⏰ Horarios -->
-      <section class="card-section fade-in-up">
-        <h3>Horarios de Operación</h3>
-
-        <div class="form-grid">
-          <div class="input-group">
-            <label>Apertura</label>
-            <input type="time" v-model="company.openTime" />
-          </div>
-
-          <div class="input-group">
-            <label>Cierre</label>
-            <input type="time" v-model="company.closeTime" />
-          </div>
-        </div>
-      </section>
-
-      <!-- ⚙️ Parámetros de Operación -->
-      <section class="card-section fade-in-up">
-        <h3>Parámetros de Operación</h3>
-
-        <div class="form-grid">
-          <div class="input-group">
-            <label>Capacidad Máxima de Vehículos</label>
-            <input type="number" v-model="company.maxUnits" min="1" />
-          </div>
-
-          <div class="input-group">
-            <label>Tiempo de Espera Máximo (min)</label>
-            <input type="number" v-model="company.waitTime" min="1" />
-          </div>
-
-          <div class="input-group">
-            <label>Tarifa Base (opcional)</label>
-            <input type="number" v-model="company.baseFare" min="0" />
-          </div>
-        </div>
-      </section>
-
-      <!-- 🔔 Notificaciones -->
-      <section class="card-section fade-in-up">
-        <h3>Notificaciones Internas</h3>
-
-        <div class="toggle-item">
-          <span>Notificar cuando un conductor complete un viaje</span>
-          <input type="checkbox" v-model="company.notifyCompleted" />
+        <div class="form-group">
+          <label>Nombre completo</label>
+          <input type="text" placeholder="Tu nombre" />
         </div>
 
-        <div class="toggle-item">
-          <span>Notificar atrasos</span>
-          <input type="checkbox" v-model="company.notifyDelays" />
+        <div class="form-group">
+          <label>Correo electrónico</label>
+          <input type="email" placeholder="correo@ejemplo.com" />
         </div>
 
-        <div class="toggle-item">
-          <span>Alertas de capacidad máxima</span>
-          <input type="checkbox" v-model="company.alertMax" />
+        <div class="form-group">
+          <label>Número de contacto</label>
+          <input type="text" placeholder="+57 300 000 0000" />
         </div>
-      </section>
 
-      <!-- Botón Guardar -->
-      <div class="save-area">
-        <button class="btn-gold" @click="saveSettings">
-          Guardar Configuraciones
-        </button>
+        <button class="btn-save">Guardar cambios</button>
       </div>
 
-    </div>
+      <!-- 🔸 CAMBIAR CONTRASEÑA -->
+      <div class="settings-card">
+        <h2 class="section-title">Cambiar Contraseña</h2>
+
+        <div class="form-group">
+          <label>Contraseña actual</label>
+          <input type="password" placeholder="••••••••" />
+        </div>
+
+        <div class="form-group">
+          <label>Nueva contraseña</label>
+          <input type="password" placeholder="Nueva contraseña" />
+        </div>
+
+        <div class="form-group">
+          <label>Confirmar nueva contraseña</label>
+          <input type="password" placeholder="Repite la nueva contraseña" />
+        </div>
+
+        <button class="btn-save">Actualizar contraseña</button>
+      </div>
+
+    </section>
+
   </div>
 </template>
 
 <script>
 export default {
   name: "Settings",
-
-  data() {
-    return {
-      company: {
-        name: "",
-        nit: "",
-        phone: "",
-        email: "",
-        address: "",
-        logo: null,
-        openTime: "",
-        closeTime: "",
-        maxUnits: 10,
-        waitTime: 15,
-        baseFare: 0,
-        notifyCompleted: true,
-        notifyDelays: true,
-        alertMax: false,
-      },
-    };
-  },
-
-  methods: {
-    uploadLogo(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        this.company.logo = reader.result;
-      };
-      reader.readAsDataURL(file);
-    },
-
-    saveSettings() {
-      alert("Configuraciones guardadas correctamente ✔️");
-    },
-  },
 };
 </script>
 
 <style scoped>
-.settings-page {
-  position: relative;
-  min-height: 100vh;
-  padding: 40px 20px;
+
+/* ================================ */
+/* FONDO ANIMADO */
+/* ================================ */
+.settings-bg {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 30% 20%, #0c0c0c, #000);
+  animation: zoom 14s ease-in-out infinite alternate;
+  z-index: -2;
 }
 
-/* Título */
-.title {
-  font-size: 2rem;
-  margin-bottom: 25px;
-  text-align: center;
-  color: #efe8c7;
-  font-weight: bold;
+.settings-gold {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 80% 80%, rgba(212,175,55,0.18), transparent 60%);
+  animation: glow 16s ease-in-out infinite alternate;
+  z-index: -1;
 }
 
-/* Contenedor de secciones */
+@keyframes zoom {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.15); }
+}
+
+@keyframes glow {
+  0% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* ================================ */
+/* CONTENEDOR */
+/* ================================ */
 .settings-container {
-  max-width: 1000px;
-  margin: auto;
+  padding: 35px;
+  color: #fff;
+  font-family: "Inter", sans-serif;
 }
 
-/* Tarjetas con tu mismo estilo */
-.card-section {
-  background: rgba(20, 20, 20, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 16px;
-  padding: 25px;
-  margin-bottom: 30px;
-  backdrop-filter: blur(5px);
-  box-shadow: 0 0 15px rgba(255, 255, 255, 0.04);
+/* HEADER */
+.settings-header .title {
+  font-size: 28px;
+  color: #D4AF37;
+  font-weight: 700;
 }
 
-/* Inputs */
-.input-group {
+.subtitle {
+  color: #aaa;
+  margin-top: 5px;
+  font-size: 15px;
+}
+
+/* ================================ */
+/* GRID DE TARJETAS */
+/* ================================ */
+.settings-grid {
+  margin-top: 35px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  gap: 25px;
+}
+
+/* ================================ */
+/* TARJETAS */
+/* ================================ */
+.settings-card {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(212,175,55,0.25);
+  border-radius: 14px;
+  padding: 22px;
+  backdrop-filter: blur(6px);
+  transition: 0.25s ease;
+}
+
+.settings-card:hover {
+  transform: translateY(-3px);
+  border-color: #D4AF37;
+  box-shadow: 0 0 20px rgba(212,175,55,0.15);
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #D4AF37;
+  margin-bottom: 15px;
+}
+
+/* ================================ */
+/* FORMULARIOS */
+/* ================================ */
+.form-group {
   display: flex;
   flex-direction: column;
+  margin-bottom: 14px;
 }
-.input-group label {
-  margin-bottom: 5px;
+
+label {
   font-size: 14px;
-  color: #cfc6a8;
-}
-.input-group input {
-  background: #1b1b1b;
-  border: 1px solid #3a3a3a;
-  color: #efe8c7;
-  padding: 10px;
-  border-radius: 10px;
-  outline: none;
-}
-.input-group input:focus {
-  border-color: #c7b37c;
-}
-.full {
-  grid-column: span 2;
-}
-
-/* Grid */
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
-}
-
-/* Logo */
-.logo-area {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-.company-logo {
-  width: 90px;
-  height: 90px;
-  border-radius: 12px;
-  border: 2px solid #c7b37c;
-  object-fit: cover;
-}
-.logo-placeholder {
-  width: 90px;
-  height: 90px;
-  border-radius: 12px;
-  background: #222;
-  border: 2px dashed #555;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #777;
-}
-
-/* Switches */
-.toggle-item {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-/* Botón dorado */
-.btn-gold {
-  background: #c7b37c;
-  color: #1a1a1a;
-  border: none;
-  padding: 12px 18px;
-  border-radius: 12px;
-  cursor: pointer;
-  width: 100%;
-  font-weight: bold;
-  font-size: 17px;
-}
-.btn-gold:hover {
+  margin-bottom: 4px;
   opacity: 0.85;
 }
 
-/* Animación */
-.fade-in-up {
-  animation: fadeUp 0.5s ease;
+input {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(212,175,55,0.3);
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 10px;
+  outline: none;
+  transition: 0.2s;
 }
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(15px); }
-  to { opacity: 1; transform: translateY(0); }
+
+input:focus {
+  border-color: #D4AF37;
+  background: rgba(255,255,255,0.12);
 }
+
+/* BOTÓN */
+.btn-save {
+  margin-top: 10px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  background: #D4AF37;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.25s;
+}
+
+.btn-save:hover {
+  background: #e2c75e;
+  box-shadow: 0 0 15px rgba(212,175,55,0.35);
+}
+
 </style>
