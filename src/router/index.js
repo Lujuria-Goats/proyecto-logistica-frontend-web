@@ -2,10 +2,10 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Landing from '../views/Landing.vue'
 import Register from "../views/Register.vue";
 import Layout from "../views/Layout.vue";
-import Dashboard from "../components/Dashboard.vue";
-import Drivers from '../components/Drivers.vue';
-import AssignRoutes from '../components/AssignRoutes.vue';
-import Settings from '../components/Settings.vue';
+import Dashboard from "../components/admin/Dashboard.vue";
+import Drivers from '../components/admin/Drivers.vue';
+import AssignRoutes from '../components/admin/AssignRoutes.vue';
+import Settings from '../components/admin/Settings.vue';
 
 const routes = [
   {
