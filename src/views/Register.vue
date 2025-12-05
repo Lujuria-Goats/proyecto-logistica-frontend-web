@@ -1,706 +1,477 @@
 <template>
-  <div
-    class="register-page"
-    :class="themeClass"
-  >
+  <div class="register-page theme-dark">
 
     <!-- FONDO ANIMADO -->
     <canvas id="canvas-bg"></canvas>
 
     <!-- BOTÓN VOLVER -->
     <button class="btn-back" @click="$router.push('/')">
-      ⬅  Volver
+      ⬅ Volver
     </button>
 
     <div class="register-card fade-in-up">
 
-      <!-- TÍTULO -->
-      <h2 class="title">Crear cuenta</h2>
-      <p class="subtitle">Únete a Apex Vision y optimiza tu operación.</p>
+      <header class="card-header">
+        <h2 class="title">Registro Empresarial</h2>
+        <p class="subtitle">Crea tu cuenta administrativa en Apex Vision.</p>
+      </header>
 
       <form @submit.prevent="submitForm">
 
-        <!-- GLOBAL NOTIFICATION -->
-        <div
-          v-if="notification.visible"
-          class="notification"
-          :class="notification.type"
-          role="alert"
-          aria-live="polite"
-        >
+        <!-- NOTIFICACIONES -->
+        <div v-if="notification.visible" class="notification" :class="notification.type">
           {{ notification.message }}
         </div>
 
-        <label class="input-label">Nombre Completo</label>
-        <input
-          v-model="form.fullName"
-          type="text"
-          class="input"
-          :class="{ 'input-error': errors.fullName }"
-          placeholder="Juan Pérez"
-          required
-        />
-        <span v-if="errors.fullName" class="error-text">{{ errors.fullName }}</span>
-
-        <label class="input-label">Correo Electrónico</label>
-        <input
-          v-model="form.email"
-          type="email"
-          class="input"
-          :class="{ 'input-error': errors.email }"
-          placeholder="correo@ejemplo.com"
-          required
-        />
-        <span v-if="errors.email" class="error-text">{{ errors.email }}</span>
-
-        <!-- CONTRASEÑA CON OJITO -->
-        <label class="input-label">Contraseña</label>
-        <div class="password-wrapper">
-          <input
-            v-model="form.password"
-            :type="showPassword ? 'text' : 'password'"
-            class="input input-pass"
-            :class="{ 'input-error': errors.password }"
-            placeholder="••••••••"
-            required
-          />
-          <button 
-            type="button" 
-            class="toggle-pass-btn" 
-            @click="showPassword = !showPassword"
-            tabindex="-1"
-          >
-            <!-- ÍCONO OJO CERRADO (Mostrar contraseña) -->
-            <svg v-if="!showPassword" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-              <line x1="1" y1="1" x2="23" y2="23"></line>
-            </svg>
-            
-            <!-- ÍCONO OJO ABIERTO (Ocultar contraseña) -->
-            <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-              <circle cx="12" cy="12" r="3"></circle>
-            </svg>
-          </button>
+        <!-- FILA 1: DATOS EMPRESA -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="input-label">Nombre Empresa</label>
+            <input v-model="form.companyName" type="text" class="input" :class="{ 'input-error': errors.companyName }"
+              placeholder="Transportes S.A.S" required />
+          </div>
+          <div class="form-group">
+            <label class="input-label">NIT / RUT</label>
+            <input v-model="form.companyNit" type="text" class="input" :class="{ 'input-error': errors.companyNit }"
+              placeholder="900.123.456-1" required />
+          </div>
         </div>
 
-        <div class="password-rules">
-          <p :class="{ ok: passwordLength }">Mínimo 8 caracteres</p>
-          <p :class="{ ok: passwordUpper }">Al menos una mayúscula</p>
-          <p :class="{ ok: passwordNumber }">Al menos un número</p>
-          <p :class="{ ok: passwordSpecial }">Al menos un carácter especial ($ o &amp;)</p>
+        <!-- FILA 2: DATOS USUARIO -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="input-label">Usuario (Login)</label>
+            <input v-model="form.userName" type="text" class="input" :class="{ 'input-error': errors.userName }"
+              placeholder="admin_user" @input="cleanUsernameInput" required />
+          </div>
+          <div class="form-group">
+            <label class="input-label">Nombre Completo</label>
+            <input v-model="form.fullName" type="text" class="input" :class="{ 'input-error': errors.fullName }"
+              placeholder="Juan Pérez" required />
+          </div>
         </div>
-        <span v-if="errors.password" class="error-text">{{ errors.password }}</span>
 
-        <!-- CAMPO phoneNumber -->
-        <label class="input-label">Número Telefónico</label>
-        <input
-          v-model="form.phoneNumber"
-          type="text"
-          maxlength="10"
-          class="input"
-          :class="{ 'input-error': errors.phoneNumber }"
-          placeholder="3000000000"
-          @input="validatePhone"
-          required
-        />
-        <p class="phone-hint" :class="{ ok: phoneValid }">
-          {{ form.phoneNumber.length }}/10 dígitos
-        </p>
-        <span v-if="errors.phoneNumber" class="error-text">{{ errors.phoneNumber }}</span>
+        <!-- FILA 3: CONTACTO -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="input-label">Email Corporativo</label>
+            <input v-model="form.email" type="email" class="input" :class="{ 'input-error': errors.email }"
+              placeholder="gerencia@empresa.com" required />
+          </div>
+          <div class="form-group">
+            <label class="input-label">Teléfono</label>
+            <input v-model="form.phoneNumber" type="text" maxlength="10" class="input"
+              :class="{ 'input-error': errors.phoneNumber }" placeholder="3001234567" @input="cleanPhoneInput"
+              required />
+          </div>
+        </div>
 
-        <div class="role-container">
-          <span :class="['role-text', form.role === 'Driver' ? 'active-text' : '']">
-            Transportador
-          </span>
-
-          <div class="role-switch" @click="toggleRole">
-            <div class="switch-handle" :class="{ right: form.role === 'Admin' }"></div>
+        <!-- FILA 4: CONTRASEÑA (Ancho completo para mayor comodidad) -->
+        <div class="form-group full-width">
+          <label class="input-label">Contraseña</label>
+          <div class="password-wrapper">
+            <input v-model="form.password" :type="showPassword ? 'text' : 'password'" class="input input-pass"
+              :class="{ 'input-error': errors.password }" placeholder="••••••••" required />
+            <button type="button" class="toggle-pass-btn" @click="showPassword = !showPassword" tabindex="-1">
+              {{ showPassword ? 'BLOQUEAR' : 'VER' }}
+            </button>
           </div>
 
-          <span :class="['role-text', form.role === 'Admin' ? 'active-text' : '']">
-            Administrador
-          </span>
+          <!-- Reglas de contraseña -->
+          <div class="password-rules-inline">
+            <span :class="{ ok: passwordLength }">8+ Caracteres</span>
+            <span :class="{ ok: passwordUpper }">Mayúscula</span>
+            <span :class="{ ok: passwordNumber }">Número</span>
+            <span :class="{ ok: passwordSpecial }">Símbolo</span>
+          </div>
         </div>
 
-        <button
-          type="submit"
-          class="btn-register"
-          :disabled="isLoading || !canSubmit"
-        >
+        <!-- BOTÓN -->
+        <button type="submit" class="btn-register" :disabled="isLoading || !canSubmit">
           <span v-if="isLoading" class="spinner"></span>
-          {{ isLoading ? "Registrando..." : "Registrarme" }}
+          {{ isLoading ? "Procesando Registro..." : "Crear Cuenta Empresarial" }}
         </button>
 
-        <!-- LINK LOGIN -->
         <div class="login-link">
-          ¿Ya tienes cuenta? 
-          <router-link to="/login">Inicia sesión</router-link>
+          ¿Ya tienes cuenta? <router-link to="/login">Iniciar Sesión</router-link>
         </div>
 
       </form>
-
     </div>
   </div>
 </template>
 
 <script>
-import { registerUser } from "../api/authApi.js";
-
 export default {
   name: "Register",
   data() {
     return {
       form: {
+        userName: "",
+        companyName: "",
+        companyNit: "",
         fullName: "",
         email: "",
+        phoneNumber: "",
         password: "",
-        role: "Driver",
-        phoneNumber: ""
+        role: "Admin"
       },
-      showPassword: false, // Control del ojito
+      showPassword: false,
       isLoading: false,
-      errors: {
-        fullName: "",
-        email: "",
-        password: "",
-        phoneNumber: ""
-      }
-      ,
-      notification: {
-        message: "",
-        type: "", // 'success' | 'error' | 'info'
-        visible: false
-      },
+      errors: {},
+      notification: { message: "", type: "", visible: false },
       notificationTimer: null
     };
   },
-
   computed: {
-    themeClass() {
-      return this.form.role === "Admin" ? "theme-dark" : "theme-light";
-    },
-
-    /* ===== VALIDACIONES DINÁMICAS ===== */
-    passwordLength() {
-      return this.form.password.length >= 8;
-    },
-    passwordUpper() {
-      return /[A-Z]/.test(this.form.password);
-    },
-    passwordSpecial() {
-      return /[$&]/.test(this.form.password);
-    },
-    passwordNumber() {
-      return /\d/.test(this.form.password);
-    },
-    passwordValid() {
-      return this.passwordLength && this.passwordUpper && this.passwordNumber && this.passwordSpecial;
-    },
-
-    phoneValid() {
-      return /^\d{10}$/.test(this.form.phoneNumber);
-    },
-
+    passwordLength() { return this.form.password.length >= 8; },
+    passwordUpper() { return /[A-Z]/.test(this.form.password); },
+    passwordSpecial() { return /[$&]/.test(this.form.password); },
+    passwordNumber() { return /\d/.test(this.form.password); },
+    passwordValid() { return this.passwordLength && this.passwordUpper && this.passwordNumber && this.passwordSpecial; },
+    phoneValid() { return /^\d{10}$/.test(this.form.phoneNumber); },
     canSubmit() {
       return (
-        this.form.fullName.trim() &&
-        this.form.email.trim() &&
-        this.passwordValid &&
-        this.phoneValid
+        this.form.companyName.trim() && this.form.companyNit.trim() &&
+        this.form.userName.trim() && this.form.fullName.trim() &&
+        this.form.email.trim() && this.passwordValid && this.phoneValid
       );
     }
   },
-
-  mounted() {
-    this.initAnimatedBG();
-  },
-
+  mounted() { this.initAnimatedBG(); },
   methods: {
-    toggleRole() {
-      this.form.role = this.form.role === "Driver" ? "Admin" : "Driver";
-    },
-
-    validatePhone() {
-      this.form.phoneNumber = this.form.phoneNumber.replace(/\D/g, "");
-    },
-
+    cleanPhoneInput() { this.form.phoneNumber = this.form.phoneNumber.replace(/\D/g, ""); },
+    cleanUsernameInput() { this.form.userName = this.form.userName.replace(/[^a-zA-Z0-9_]/g, ""); },
     showNotification(message, type = 'error') {
-      if (this.notificationTimer) {
-        clearTimeout(this.notificationTimer);
-        this.notificationTimer = null;
-      }
-
-      this.notification.message = message;
-      this.notification.type = type;
-      this.notification.visible = true;
-
-      this.notificationTimer = setTimeout(() => {
-        this.notification.visible = false;
-        this.notification.message = "";
-        this.notification.type = "";
-        this.notificationTimer = null;
-      }, 5000);
+      if (this.notificationTimer) clearTimeout(this.notificationTimer);
+      this.notification.message = message; this.notification.type = type; this.notification.visible = true;
+      this.notificationTimer = setTimeout(() => { this.notification.visible = false; }, 5000);
     },
-
     validateForm() {
-      this.errors = {
-        fullName: "",
-        email: "",
-        password: "",
-        phoneNumber: ""
-      };
-
-      let isValid = true;
-
-      if (!this.form.fullName.trim()) {
-        this.errors.fullName = "El nombre completo es requerido.";
-        isValid = false;
-      }
-
-      if (!this.form.email.trim()) {
-        this.errors.email = "El correo electrónico es requerido.";
-        isValid = false;
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.email)) {
-        this.errors.email = "El correo electrónico no es válido.";
-        isValid = false;
-      }
-
-      if (!this.passwordValid) {
-        this.errors.password = "La contraseña no cumple los requisitos.";
-        isValid = false;
-      }
-
-      if (!this.phoneValid) {
-        this.errors.phoneNumber = "El teléfono debe tener exactamente 10 dígitos.";
-        isValid = false;
-      }
-
+      this.errors = {}; let isValid = true;
+      if (!this.form.companyName.trim()) { this.errors.companyName = true; isValid = false; }
+      if (!this.form.companyNit.trim()) { this.errors.companyNit = true; isValid = false; }
+      if (!this.form.userName.trim() || this.form.userName.length < 3) { this.errors.userName = true; isValid = false; }
+      if (!this.form.fullName.trim()) { this.errors.fullName = true; isValid = false; }
+      if (!this.form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.email)) { this.errors.email = true; isValid = false; }
+      if (!this.passwordValid) { this.errors.password = true; isValid = false; }
+      if (!this.phoneValid) { this.errors.phoneNumber = true; isValid = false; }
       return isValid;
     },
-
     async submitForm() {
-      if (!this.validateForm()) {
-        this.showNotification("Por favor, completa correctamente todos los campos.", "error");
-        return;
-      }
-
+      if (!this.validateForm()) { this.showNotification("Por favor verifica los campos marcados en rojo.", "error"); return; }
       this.isLoading = true;
-
       try {
-        const response = await registerUser(this.form);
-
-        this.showNotification("✅ Usuario registrado correctamente. Redirigiendo a login...", "success");
-        setTimeout(() => {
-          this.$router.push("/login");
-        }, 5000);
-
+        const payload = {
+          userName: this.form.userName, fullName: this.form.fullName, email: this.form.email,
+          password: this.form.password, phoneNumber: this.form.phoneNumber, role: "Admin",
+          companyNit: this.form.companyNit, companyName: this.form.companyName
+        };
+        const response = await fetch('https://service.lujuria.crudzaso.com/api/Auth/register/admin', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          if (errorData && errorData.errors) throw new Error(Object.values(errorData.errors).flat().join(", "));
+          throw new Error("Error en la solicitud (" + response.status + ")");
+        }
+        this.showNotification("✅ Empresa registrada exitosamente. Redirigiendo...", "success");
+        setTimeout(() => { this.$router.push("/login"); }, 2500);
       } catch (error) {
-        this.showNotification("❌ " + (error.message || "Error de conexión con el servidor"), "error");
-        console.error("Registration error:", error);
-      } finally {
-        this.isLoading = false;
-      }
+        this.showNotification("❌ " + error.message, "error");
+      } finally { this.isLoading = false; }
     },
-
-    /* =============================
-       ANIMACIÓN DE FONDO
-    ==============================*/
     initAnimatedBG() {
-      const canvas = document.getElementById("canvas-bg");
-      const ctx = canvas.getContext("2d");
-
-      let w, h;
-      const resize = () => {
-        w = canvas.width = window.innerWidth;
-        h = canvas.height = window.innerHeight;
-      };
-      resize();
-      window.addEventListener("resize", resize);
-
-      const numDots = 90;
-      const dots = [];
-
-      class Dot {
-        constructor() {
-          this.x = Math.random() * w;
-          this.y = Math.random() * h;
-          this.r = Math.random() * 2 + 1;
-          this.dx = (Math.random() - 0.5) * 0.7;
-          this.dy = (Math.random() - 0.5) * 0.7;
-        }
-        draw() {
-          ctx.beginPath();
-          ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-          ctx.fill();
-        }
-        move() {
-          if (this.x < 0 || this.x > w) this.dx *= -1;
-          if (this.y < 0 || this.y > h) this.dy *= -1;
-          this.x += this.dx;
-          this.y += this.dy;
-        }
-      }
-
-      for (let i = 0; i < numDots; i++) dots.push(new Dot());
-
-      function animate() {
-        ctx.clearRect(0, 0, w, h);
-        dots.forEach((d) => {
-          d.move();
-          d.draw();
+      const canvas = document.getElementById("canvas-bg"); if (!canvas) return;
+      const ctx = canvas.getContext("2d"); let w, h;
+      const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; };
+      resize(); window.addEventListener("resize", resize);
+      const dots = Array.from({ length: 70 }, () => ({
+        x: Math.random() * w, y: Math.random() * h, r: Math.random() * 2 + 1,
+        dx: (Math.random() - 0.5) * 0.6, dy: (Math.random() - 0.5) * 0.6
+      }));
+      const animate = () => {
+        ctx.clearRect(0, 0, w, h); ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+        dots.forEach(d => {
+          d.x += d.dx; d.y += d.dy; if (d.x < 0 || d.x > w) d.dx *= -1; if (d.y < 0 || d.y > h) d.dy *= -1;
+          ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2); ctx.fill();
         });
         requestAnimationFrame(animate);
-      }
-
-      animate();
+      }; animate();
     }
   }
 };
 </script>
 
 <style scoped>
-/* ===== CANVAS DE FONDO ===== */
+/* TEMA OSCURO ELEGANTE */
+.theme-dark {
+  --card-bg: #12100d;
+  --text-pri: #f5e9c6;
+  --text-sec: #b9a56d;
+  --input-bg: #050505;
+  --accent: #d4af37;
+  --err: #ef5350;
+  --ok: #66bb6a;
+  background: #000;
+  color: var(--text-pri);
+}
+
 #canvas-bg {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: #000;
+  background: #080808;
 }
 
-/* ===== BOTÓN VOLVER ===== */
 .btn-back {
   position: absolute;
   top: 25px;
   left: 25px;
-  background: #ffffff;
-  box-shadow: 0px 0px 3px #D4AF37;
+  background: var(--accent);
+  color: #000;
   border: none;
-  padding: 8px 14px;
-  border-radius: 10px;
+  padding: 8px 16px;
+  border-radius: 8px;
   cursor: pointer;
+  font-weight: bold;
   font-size: 0.9rem;
-  transition: 0.2s ease;
-  color: #0c0909;
   z-index: 2;
+  transition: transform 0.2s;
 }
 
 .btn-back:hover {
-  background: #d4d4d4;
+  transform: scale(1.05);
 }
 
-/* ======= CONTENEDOR GENERAL ======= */
 .register-page {
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  transition: background 0.4s ease, color 0.4s ease;
   padding: 20px;
   position: relative;
   overflow: hidden;
 }
 
-/* FADE */
 .fade-in-up {
-  animation: fadeUp 0.8s ease forwards;
+  animation: fadeUp 0.7s ease forwards;
   opacity: 0;
 }
 
 @keyframes fadeUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to   { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
-/* CARD */
+/* TARJETA EQUILIBRADA */
 .register-card {
-  width: 420px;
-  padding: 35px;
-  border-radius: 22px;
+  width: 100%;
+  max-width: 650px;
+  /* Ancho cómodo para 2 columnas */
+  padding: 35px 40px;
+  /* Espaciado interno generoso */
+  border-radius: 16px;
   background: var(--card-bg);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-  transition: background 0.4s ease, box-shadow 0.4s ease;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.9);
   z-index: 2;
 }
 
-.title {
-  font-size: 28px;
-  font-weight: bold;
+.card-header {
   text-align: center;
+  margin-bottom: 25px;
+}
+
+.title {
+  font-size: 1.8rem;
+  color: var(--accent);
+  margin: 0 0 5px 0;
 }
 
 .subtitle {
-  text-align: center;
-  font-size: 14px;
-  margin-bottom: 25px;
-  color: var(--text-secondary);
+  font-size: 0.95rem;
+  color: var(--text-sec);
+  margin: 0;
 }
 
+/* GRID SYSTEM - 2 Columnas */
+.form-row {
+  display: flex;
+  gap: 20px;
+  /* Separación horizontal cómoda */
+  margin-bottom: 18px;
+  /* Separación vertical entre filas */
+}
+
+.form-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.full-width {
+  margin-bottom: 18px;
+}
+
+/* Para el password */
+
 .input-label {
-  display: block;
-  margin-top: 12px;
-  margin-bottom: 5px;
-  color: var(--text-primary);
-  font-size: 14px;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+  color: var(--text-sec);
+  font-weight: 600;
 }
 
 .input {
   width: 100%;
-  padding: 12px;
-  border-radius: 12px;
-  border: 1px solid var(--input-border);
+  padding: 12px 14px;
+  /* Tamaño de input estándar, fácil de clickear */
+  border-radius: 8px;
+  border: 1px solid #333;
   background: var(--input-bg);
-  color: var(--text-primary);
-  transition: all 0.3s ease;
+  color: #fff;
+  font-size: 1rem;
+  box-sizing: border-box;
+  transition: border 0.3s, box-shadow 0.3s;
 }
 
 .input:focus {
   outline: none;
-  border-color: #D4AF37;
-  box-shadow: 0 0 8px rgba(212, 175, 55, 0.4);
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.2);
 }
 
-/* WRAPPER PARA INPUT DE CONTRASEÑA Y OJITO */
+.input-error {
+  border-color: var(--err) !important;
+}
+
+/* PASSWORD WRAPPER */
 .password-wrapper {
   position: relative;
   width: 100%;
 }
 
 .input-pass {
-  padding-right: 40px; /* Espacio para el ícono */
+  padding-right: 80px;
 }
 
-/* BOTÓN OJITO */
+/* Espacio para el botón de texto */
 .toggle-pass-btn {
   position: absolute;
-  right: 12px;
+  right: 10px;
   top: 50%;
   transform: translateY(-50%);
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--text-secondary); /* Se adapta al tema (oscuro/claro) */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  transition: color 0.2s;
+  font-size: 0.75rem;
+  color: var(--accent);
+  font-weight: bold;
+  letter-spacing: 0.5px;
 }
 
-.toggle-pass-btn:hover {
-  color: #D4AF37;
-}
-
-/* ==========================
-   PASSWORD RULES (COMPACT)
- ===========================*/
-.password-rules {
+/* REGLAS PASSWORD */
+.password-rules-inline {
   display: flex;
-  gap: 8px;
+  gap: 12px;
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: #666;
   flex-wrap: wrap;
-  margin-top: 8px;
-  align-items: center;
-  z-index: 3;
-}
-.password-rules p {
-  margin: 0;
-  padding: 4px 7px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 8px;
-  font-size: 12px;
-  color: var(--rule-invalid-color);
-  background: transparent;
-  transition: color 0.15s ease, transform 0.12s ease, background 0.15s ease;
-}
-.password-rules p::before {
-  content: '';
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-}
-.password-rules p.ok {
-  color: var(--rule-valid-color);
-  transform: translateY(-1px);
 }
 
-/* PHONE HINT */
-.phone-hint {
-  font-size: 12px;
-  color: var(--text-secondary);
-  text-align: right;
-  margin-top: 4px;
+.password-rules-inline span {
   transition: color 0.3s;
-}
-.phone-hint.ok {
-  color: var(--rule-valid-color);
-}
-
-/* ROLE SWITCH */
-.role-container {
-  margin: 25px 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 15px;
-}
-
-.role-text {
-  font-size: 14px;
-  color: var(--text-secondary);
-}
-
-.active-text {
-  color: #D4AF37;
-  font-weight: 600;
-}
-
-.role-switch {
-  width: 65px;
-  height: 30px;
-  border-radius: 20px;
-  background: var(--input-bg);
-  border: 1px solid var(--input-border);
   display: flex;
   align-items: center;
-  padding: 3px;
-  cursor: pointer;
+  gap: 4px;
 }
 
-.switch-handle {
-  width: 24px;
-  height: 24px;
-  background: #D4AF37;
-  border-radius: 50%;
-  transition: transform 0.3s ease;
+.password-rules-inline span::before {
+  content: "•";
+  color: #444;
 }
 
-.switch-handle.right {
-  transform: translateX(32px);
+.password-rules-inline span.ok {
+  color: var(--ok);
 }
 
-/* BOTÓN */
+.password-rules-inline span.ok::before {
+  content: "✓";
+  color: var(--ok);
+}
+
+/* BOTÓN PRINCIPAL */
 .btn-register {
   width: 100%;
-  padding: 12px;
-  background: #D4AF37;
+  padding: 14px;
+  background: var(--accent);
   color: #000;
   border: none;
-  border-radius: 12px;
-  font-size: 16px;
-  margin-top: 10px;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin-top: 15px;
   cursor: pointer;
-  font-weight: bold;
-  transition: transform 0.2s ease, box-shadow 0.3s ease;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 10px rgba(212, 175, 55, 0.2);
 }
 
 .btn-register:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 15px rgba(212,175,55,0.4);
+  box-shadow: 0 6px 15px rgba(212, 175, 55, 0.4);
 }
 
-/* LOGIN LINK */
-.login-link {
-  margin-top: 24px;
-  font-size: 0.95rem;
-  text-align: center;
-  color: var(--text-secondary);
-}
-.login-link a {
-  color: #D4AF37;
-  font-weight: 700;
-  text-decoration: none;
-  margin-left: 5px;
-}
-.login-link a:hover {
-  text-decoration: underline;
-}
-
-/* TEMAS */
-.theme-dark {
-  --card-bg: #1A1A1A;
-  --text-primary: #F5F5F5;
-  --text-secondary: #A0A0A0;
-  --input-bg: #0F0F0F;
-  --input-border: #333;
-  --rule-invalid-color: #ff6b6b;
-  --rule-valid-color: #4CAF50;
-  background: #0F0F0F;
-  color: #F5F5F5;
-}
-
-.theme-light {
-  --card-bg: #FAFAFA;
-  --text-primary: #202020;
-  --text-secondary: #555;
-  --input-bg: #F0F0F0;
-  --input-border: #DDD;
-  --rule-invalid-color: #E53935;
-  --rule-valid-color: #4CAF50;
-  background: #F5F5F5;
-  color: #202020;
-}
-
-/* ERROR STYLES */
-.error-text {
-  display: block;
-  color: #E53935;
-  font-size: 12px;
-  margin-top: 3px;
-  margin-bottom: 8px;
-  font-weight: 500;
-}
-
-/* GLOBAL NOTIFICATION */
-.notification {
-  width: 100%;
-  padding: 10px 14px;
-  color: #fff;
-  border-radius: 10px;
-  margin-bottom: 12px;
-  font-weight: 600;
-  font-size: 13px;
-  display: block;
-  text-align: center;
-  z-index: 3;
-}
-.notification.error {
-  background: linear-gradient(90deg, rgba(229,57,53,1) 0%, rgba(211,47,47,1) 100%);
-}
-.notification.success {
-  background: linear-gradient(90deg, #4caf50 0%, #43a047 100%);
-  color: #fff;
-}
-.notification.info {
-  background: linear-gradient(90deg, #2196f3 0%, #1976d2 100%);
-}
-
-.input-error {
-  border-color: #E53935 !important;
-  box-shadow: 0 0 8px rgba(229, 57, 53, 0.3) !important;
-}
-
-.input-error:focus {
-  border-color: #E53935 !important;
-  box-shadow: 0 0 8px rgba(229, 57, 53, 0.4) !important;
-}
-
-/* BUTTON DISABLED STATE */
 .btn-register:disabled {
-  opacity: 0.7;
+  opacity: 0.6;
   cursor: not-allowed;
   transform: none;
 }
 
-.btn-register:disabled:hover {
-  transform: none;
+.login-link {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 0.95rem;
+  color: #888;
 }
 
-/* SPINNER */
+.login-link a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: bold;
+  margin-left: 5px;
+}
+
+/* NOTIFICACIONES */
+.notification {
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.notification.error {
+  background: rgba(239, 83, 80, 0.15);
+  color: #ef5350;
+  border: 1px solid var(--err);
+}
+
+.notification.success {
+  background: rgba(102, 187, 106, 0.15);
+  color: #66bb6a;
+  border: 1px solid var(--ok);
+}
+
 .spinner {
   display: inline-block;
   width: 14px;
@@ -713,6 +484,22 @@ export default {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* RESPONSIVE: EN CELULAR PASA A 1 COLUMNA */
+@media (max-width: 700px) {
+  .form-row {
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+
+  .register-card {
+    padding: 25px;
+    max-width: 100%;
+  }
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <div class="login-container">
+  <div class="login-page theme-dark">
 
     <!-- FONDO ANIMADO -->
     <canvas id="canvas-bg"></canvas>
@@ -9,76 +9,57 @@
       ⬅ Volver
     </button>
 
-    <div class="card">
-      <h2 class="title">Iniciar Sesión</h2>
-      <p class="subtitle">Accede a Apex Vision y continúa tu operación.</p>
+    <div class="login-card fade-in-up">
 
-      <!-- INPUT CORREO -->
-      <div class="form-group">
-        <label>Correo Electrónico</label>
-        <input
-          v-model="email"
-          type="email"
-          placeholder="correo@ejemplo.com"
-        />
-      </div>
+      <header class="card-header">
+        <h2 class="title">Iniciar Sesión</h2>
+        <p class="subtitle">Bienvenido de nuevo a Apex Vision.</p>
+      </header>
 
-      <!-- INPUT CONTRASEÑA CON OJITO -->
-      <div class="form-group">
-        <label>Contraseña</label>
-        <div class="password-wrapper">
-          <input
-            v-model="password"
-            :type="showPassword ? 'text' : 'password'"
-            placeholder="********"
-            class="input-pass"
-          />
-          <button 
-            type="button" 
-            class="toggle-pass-btn" 
-            @click="showPassword = !showPassword"
-            tabindex="-1"
-          >
-            <!-- ÍCONO OJO CERRADO (Mostrar contraseña) -->
-            <svg v-if="!showPassword" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-              <line x1="1" y1="1" x2="23" y2="23"></line>
-            </svg>
-            
-            <!-- ÍCONO OJO ABIERTO (Ocultar contraseña) -->
-            <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-              <circle cx="12" cy="12" r="3"></circle>
-            </svg>
-          </button>
+      <form @submit.prevent="loginUser">
+
+        <!-- NOTIFICACIONES -->
+        <div v-if="notification.visible" class="notification" :class="notification.type">
+          {{ notification.message }}
         </div>
-      </div>
 
-      <!-- LINK OLVIDASTE CONTRASEÑA -->
-      <div class="forgot-pass">
-        <a href="#">¿Olvidaste tu contraseña?</a>
-      </div>
+        <!-- INPUT IDENTIFIER (Usuario o Correo) -->
+        <div class="form-group">
+          <label class="input-label">Usuario o Correo</label>
+          <input v-model="identifier" type="text" class="input" :class="{ 'input-error': errors.identifier }"
+            placeholder="admin_user o correo@ejemplo.com" required />
+        </div>
 
-      <!-- NOTIFICACIÓN -->
-      <div
-        v-if="notification.visible"
-        :class="['notification', notification.type]"
-      >
-        {{ notification.message }}
-      </div>
+        <!-- INPUT PASSWORD -->
+        <div class="form-group">
+          <label class="input-label">Contraseña</label>
+          <div class="password-wrapper">
+            <input v-model="password" :type="showPassword ? 'text' : 'password'" class="input input-pass"
+              :class="{ 'input-error': errors.password }" placeholder="••••••••" required />
+            <button type="button" class="toggle-pass-btn" @click="showPassword = !showPassword" tabindex="-1">
+              {{ showPassword ? 'BLOQUEAR' : 'VER' }}
+            </button>
+          </div>
+        </div>
 
-      <!-- BOTÓN LOGIN -->
-      <button class="btn-login" @click="loginUser" :disabled="loading">
-        <span v-if="!loading">Ingresar</span>
-        <span v-else class="spinner"></span>
-      </button>
+        <!-- OLVIDASTE CONTRASEÑA -->
+        <div class="forgot-pass">
+          <a href="#">¿Olvidaste tu contraseña?</a>
+        </div>
 
-      <!-- LINK REGISTRO -->
-      <div class="register-link">
-        ¿No tienes cuenta? 
-        <router-link to="/register">Regístrate</router-link>
-      </div>
+        <!-- BOTÓN LOGIN -->
+        <button type="submit" class="btn-login" :disabled="isLoading">
+          <span v-if="isLoading" class="spinner"></span>
+          {{ isLoading ? "Autenticando..." : "Ingresar" }}
+        </button>
 
+        <!-- LINK REGISTRO -->
+        <div class="register-link">
+          ¿No tienes cuenta?
+          <router-link to="/register">Crear cuenta empresarial</router-link>
+        </div>
+
+      </form>
     </div>
   </div>
 </template>
@@ -88,99 +69,28 @@ export default {
   name: "Login",
   data() {
     return {
-      email: "",
+      identifier: "", // Cambiado de email a identifier
       password: "",
-      showPassword: false, // Variable para controlar el ojito
-      loading: false,
-      apiUrl: "https://service.lujuria.crudzaso.com/api/Auth/login",
-
-      notification: {
-        visible: false,
-        message: "",
-        type: "success",
-        timer: null,
-      },
+      showPassword: false,
+      isLoading: false,
+      errors: {},
+      notification: { visible: false, message: "", type: "", timer: null },
     };
   },
-
   mounted() {
     this.initAnimatedBG();
   },
-
   methods: {
-    /* ------------------------------
-       NOTIFICACIONES
-    --------------------------------*/
+    // --- NOTIFICACIONES ---
     showNotification(message, type = "success") {
       if (this.notification.timer) clearTimeout(this.notification.timer);
-
       this.notification = {
-        visible: true,
-        message,
-        type,
-        timer: setTimeout(() => {
-          this.notification.visible = false;
-        }, 3500),
+        visible: true, message, type,
+        timer: setTimeout(() => { this.notification.visible = false; }, 3500),
       };
     },
 
-    /* ------------------------------
-       ANIMACIÓN FONDO
-    --------------------------------*/
-    initAnimatedBG() {
-      const canvas = document.getElementById("canvas-bg");
-      const ctx = canvas.getContext("2d");
-
-      let w, h;
-      const resize = () => {
-        w = canvas.width = window.innerWidth;
-        h = canvas.height = window.innerHeight;
-      };
-      resize();
-      window.addEventListener("resize", resize);
-
-      const numDots = 90;
-      const dots = [];
-
-      class Dot {
-        constructor() {
-          this.x = Math.random() * w;
-          this.y = Math.random() * h;
-          this.r = Math.random() * 2 + 1;
-          this.dx = (Math.random() - 0.5) * 0.7;
-          this.dy = (Math.random() - 0.5) * 0.7;
-        }
-        draw() {
-          ctx.beginPath();
-          ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-          ctx.fill();
-        }
-        move() {
-          if (this.x < 0 || this.x > w) this.dx *= -1;
-          if (this.y < 0 || this.y > h) this.dy *= -1;
-          this.x += this.dx;
-          this.y += this.dy;
-        }
-      }
-
-      for (let i = 0; i < numDots; i++) dots.push(new Dot());
-
-      const animate = () => {
-        ctx.clearRect(0, 0, w, h);
-        dots.forEach((d) => {
-          d.move();
-          d.draw();
-        });
-        requestAnimationFrame(animate);
-      };
-
-      animate();
-    },
-
-    /* ------------------------------
-       DECODIFICAR TOKEN JWT
-    --------------------------------*/
+    // --- DECODIFICAR TOKEN (JWT) ---
     decodeToken(token) {
       try {
         const payload = token.split(".")[1];
@@ -192,285 +102,357 @@ export default {
       }
     },
 
-    /* ------------------------------
-       LOGIN
-    --------------------------------*/
+    // --- PROCESO DE LOGIN ---
     async loginUser() {
-      if (!this.email || !this.password) {
-        this.showNotification("Llena todos los campos.", "error");
+      // Limpieza de errores previos
+      this.errors = {};
+
+      if (!this.identifier.trim()) this.errors.identifier = true;
+      if (!this.password) this.errors.password = true;
+
+      if (this.errors.identifier || this.errors.password) {
+        this.showNotification("Por favor completa tus credenciales.", "error");
         return;
       }
 
-      this.loading = true;
+      this.isLoading = true;
 
       try {
-        const res = await fetch(this.apiUrl, {
+        const response = await fetch("https://service.lujuria.crudzaso.com/api/Auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            email: this.email,
-            password: this.password,
+            identifier: this.identifier.trim(), // Se envía como "identifier"
+            password: this.password
           }),
         });
 
-        if (!res.ok) {
-          this.loading = false;
-          this.showNotification("Correo o contraseña incorrectos.", "error");
-          return;
-        }
-
-        const data = await res.json();
-
-        if (data.token) {
-          localStorage.setItem("token", data.token);
-        }
-
-        // 🔥 Decodifica el token
-        const decoded = this.decodeToken(data.token);
-
-        if (!decoded || !decoded.role) {
-          this.showNotification("Token inválido.", "error");
-          return;
-        }
-
-        const role = decoded.role;
-
-        this.showNotification("Inicio de sesión exitoso ✔", "success");
-
-        // 🔥 REDIRECCIÓN SEGÚN ROL
-        setTimeout(() => {
-          if (role === "Admin") {
-            this.$router.push("/admin/dashboard");
-          } else if (role === "Driver") {
-            this.$router.push("/driver/dashboard");
-          } else {
-            this.showNotification("Rol desconocido.", "error");
+        if (!response.ok) {
+          // Si es 401 o 400, asumimos credenciales inválidas
+          if (response.status === 401 || response.status === 400) {
+            throw new Error("Usuario o contraseña incorrectos.");
           }
-        }, 900);
+          throw new Error("Error del servidor (" + response.status + ")");
+        }
+
+        const data = await response.json();
+
+        // Verificar que venga el token
+        if (data.token) {
+          // Guardamos SOLO el string del token
+          localStorage.setItem("token", data.token);
+
+          // Decodificar para saber el rol
+          const decoded = this.decodeToken(data.token);
+
+          if (!decoded || !decoded.role) {
+            throw new Error("El token recibido no es válido.");
+          }
+
+          this.showNotification("¡Bienvenido! Iniciando sesión...", "success");
+
+          // Redirección basada en Rol
+          setTimeout(() => {
+            if (decoded.role === "Admin" || decoded.role === "Company") {
+              this.$router.push("/admin/dashboard"); // Ajusta tu ruta de admin
+            } else if (decoded.role === "Driver") {
+              this.$router.push("/driver/dashboard"); // Ajusta tu ruta de driver
+            } else {
+              this.$router.push("/dashboard"); // Ruta por defecto
+            }
+          }, 1000);
+
+        } else {
+          throw new Error("La respuesta no contiene un token de acceso.");
+        }
 
       } catch (error) {
-        console.error("Error general:", error);
-        this.showNotification("No se pudo conectar con el servidor.", "error");
+        console.error(error);
+        this.showNotification(error.message, "error");
       } finally {
-        this.loading = false;
+        this.isLoading = false;
       }
     },
+
+    // --- FONDO ANIMADO (Igual al Register) ---
+    initAnimatedBG() {
+      const canvas = document.getElementById("canvas-bg");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      let w, h;
+      const resize = () => { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; };
+      resize(); window.addEventListener("resize", resize);
+
+      const dots = Array.from({ length: 60 }, () => ({
+        x: Math.random() * w, y: Math.random() * h, r: Math.random() * 2 + 1,
+        dx: (Math.random() - 0.5) * 0.5, dy: (Math.random() - 0.5) * 0.5
+      }));
+
+      const animate = () => {
+        ctx.clearRect(0, 0, w, h); ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+        dots.forEach(d => {
+          d.x += d.dx; d.y += d.dy; if (d.x < 0 || d.x > w) d.dx *= -1; if (d.y < 0 || d.y > h) d.dy *= -1;
+          ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2); ctx.fill();
+        });
+        requestAnimationFrame(animate);
+      }; animate();
+    }
   },
 };
 </script>
 
 <style scoped>
-:root {
-  --gold: #d4af37;
-  --gold-dark: #b8952f;
-  --light-gray: #e8e8e8;
-  --text-dark: #222;
+/* TEMA OSCURO (Igual que Register.vue) */
+.theme-dark {
+  --card-bg: #12100d;
+  --text-pri: #f5e9c6;
+  --text-sec: #b9a56d;
+  --input-bg: #050505;
+  --accent: #d4af37;
+  --err: #ef5350;
+  --ok: #66bb6a;
+  background: #000;
+  color: var(--text-pri);
 }
 
-/* CANVAS FONDO */
 #canvas-bg {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: #000;
+  background: #080808;
 }
 
-/* NOTIFICACIONES */
-.notification {
-  top: 20px;
-  right: 20px;
-  padding: 14px 20px;
-  border-radius: 14px;
-  font-weight: 600;
-  color: white;
-  z-index: 9999;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-  animation: fadeIn 0.25s ease-out;
-}
-
-.notification.success {
-  background: #28a745;
-}
-
-.notification.error {
-  background: #e63946;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* CONTENEDOR */
-.login-container {
-  height: 100vh;
+.login-page {
+  min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
+  padding: 20px;
   position: relative;
+  overflow: hidden;
 }
 
-/* BOTÓN VOLVER */
 .btn-back {
   position: absolute;
-  top: 20px;
-  left: 20px;
+  top: 25px;
+  left: 25px;
+  background: var(--accent);
   color: #000;
-  border-radius: 10px;
   border: none;
-  background: #fff;
-  box-shadow: 0px 0px 3px #D4AF37;
-  padding: 8px 12px;
-  font-size: 0.95rem;
+  padding: 8px 16px;
+  border-radius: 8px;
   cursor: pointer;
+  font-weight: bold;
+  font-size: 0.9rem;
   z-index: 2;
+  transition: transform 0.2s;
 }
 
-/* CARD */
-.card {
-  background: #fff;
-  width: 420px;
+.btn-back:hover {
+  transform: scale(1.05);
+}
+
+/* TARJETA DE LOGIN (Más angosta que Register) */
+.login-card {
+  width: 100%;
+  max-width: 420px;
   padding: 40px 35px;
-  border-radius: 20px;
-  box-shadow: 0px 8px 25px rgba(0, 0, 0, 0.15);
+  border-radius: 16px;
+  background: var(--card-bg);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.9);
   z-index: 2;
-  text-align: center;
 }
 
-/* TITULOS */
+.fade-in-up {
+  animation: fadeUp 0.7s ease forwards;
+  opacity: 0;
+}
+
+@keyframes fadeUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.card-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
 .title {
-  font-size: 1.9rem;
-  font-weight: 800;
-  color: var(--text-dark);
+  font-size: 1.8rem;
+  color: var(--accent);
+  margin: 0 0 5px 0;
 }
 
 .subtitle {
-  margin-bottom: 32px;
-  color: #777;
+  font-size: 0.95rem;
+  color: var(--text-sec);
+  margin: 0;
 }
 
-/* INPUTS */
 .form-group {
   margin-bottom: 20px;
-  text-align: left;
 }
 
-input {
+.input-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  color: var(--text-sec);
+  font-weight: 600;
+}
+
+.input {
   width: 100%;
-  margin-top: 6px;
-  padding: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background: var(--input-bg);
+  color: #fff;
   font-size: 1rem;
-  border-radius: 10px;
-  border: 1px solid #ddd;
-  background: var(--light-gray);
-  transition: all 0.2s;
+  box-sizing: border-box;
+  transition: border 0.3s, box-shadow 0.3s;
 }
 
-input:focus {
+.input:focus {
   outline: none;
-  border-color: var(--gold);
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.2);
 }
 
-/* WRAPPER PARA INPUT DE CONTRASEÑA Y OJITO */
+.input-error {
+  border-color: var(--err) !important;
+}
+
+/* PASSWORD */
 .password-wrapper {
   position: relative;
   width: 100%;
 }
 
 .input-pass {
-  padding-right: 40px; /* Espacio para el ícono */
+  padding-right: 80px;
 }
 
-/* BOTÓN OJITO */
 .toggle-pass-btn {
   position: absolute;
-  right: 12px;
-  bottom: 12px; /* Alineado verticalmente considerando el padding del input */
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
   cursor: pointer;
-  color: #777;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  transition: color 0.2s;
+  font-size: 0.75rem;
+  color: var(--accent);
+  font-weight: bold;
 }
 
-.toggle-pass-btn:hover {
-  color: var(--gold-dark);
-}
-
-/* OLVIDASTE CONTRASEÑA */
 .forgot-pass {
   text-align: right;
   margin-top: -10px;
   margin-bottom: 20px;
 }
+
 .forgot-pass a {
-  color: #777;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  color: #888;
   text-decoration: none;
   transition: 0.2s;
 }
+
 .forgot-pass a:hover {
-  color: #D4AF37;
+  color: var(--accent);
 }
 
-/* BOTÓN LOGIN */
+/* BOTÓN */
 .btn-login {
-  margin-top: 0px;
   width: 100%;
-  background: #D4AF37;
+  padding: 14px;
+  background: var(--accent);
   color: #000;
-  padding: 12px;
-  border-radius: 12px;
-  font-size: 1.1rem;
   border: none;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: 800;
   cursor: pointer;
-  transition: 0.25s;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.btn-login:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 10px rgba(212, 175, 55, 0.2);
 }
 
 .btn-login:hover:not(:disabled) {
-  background: #e2c770;
   transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(212, 175, 55, 0.4);
 }
 
-/* REGISTRATE */
-.register-link {
-  margin-top: 24px;
-  font-size: 0.95rem;
-  color: #666;
+.btn-login:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
+
+.register-link {
+  margin-top: 25px;
+  text-align: center;
+  font-size: 0.95rem;
+  color: #888;
+}
+
 .register-link a {
-  color: #D4AF37;
-  font-weight: 700;
+  color: var(--accent);
   text-decoration: none;
+  font-weight: bold;
   margin-left: 5px;
 }
-.register-link a:hover {
-  text-decoration: underline;
+
+/* NOTIFICACIONES */
+.notification {
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: bold;
 }
 
-/* 🔥 SPINNER */
+.notification.error {
+  background: rgba(239, 83, 80, 0.15);
+  color: #ef5350;
+  border: 1px solid var(--err);
+}
+
+.notification.success {
+  background: rgba(102, 187, 106, 0.15);
+  color: #66bb6a;
+  border: 1px solid var(--ok);
+}
+
 .spinner {
-  width: 22px;
-  height: 22px;
-  border: 3px solid #000;
-  border-top-color: transparent;
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(0, 0, 0, 0.3);
+  border-top-color: #000;
   border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+  animation: spin 0.8s linear infinite;
+  margin-right: 8px;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 500px) {
+  .login-card {
+    padding: 30px 20px;
+  }
 }
 </style>
