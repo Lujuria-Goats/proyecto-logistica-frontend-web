@@ -19,7 +19,6 @@
                 <!-- LOGO -->
                 <div class="logo-area">
                     <img src="../assets/logo.png" alt="Apex Vision" class="logo" />
-                    <!-- <h2 class="brand">Apex Vision</h2> -->
                 </div>
 
                 <!-- Divider -->
@@ -40,9 +39,15 @@
                 </nav>
             </section>
 
-            <!-- 👤 USER BOX -->
+            <!-- 👤 USER BOX CON SILUETA -->
             <div class="user-box">
-                <img :src="avatarUrl" class="avatar" />
+                <!-- ÍCONO SILUETA -->
+                <div class="avatar silhouette-container">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path fill-rule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+
                 <div class="user-info">
                     <p class="name">{{ fullName }}</p>
                     <p class="role">{{ userRoleTranslated }}</p>
@@ -72,7 +77,7 @@ export default {
         return {
             fullName: "Cargando...",
             userRoleTranslated: "",
-            avatarUrl: `https://api.dicebear.com/7.x/adventurer/svg?seed=${Math.random()}`,
+            // avatarUrl eliminado ya que usamos silueta estática
             sidebarOpen: false
         };
     },
@@ -292,12 +297,25 @@ export default {
     border: 1px solid rgba(212, 175, 55, 0.25);
 }
 
+/* SILUETA MODIFICADA */
 .avatar {
     width: 44px;
     height: 44px;
     border-radius: 50%;
     border: 2px solid rgba(212, 175, 55, 0.4);
     flex-shrink: 0;
+    
+    /* Centrado del SVG */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.08); /* Fondo sutil */
+    color: #D4AF37; /* Color de la silueta */
+}
+
+.avatar svg {
+    width: 26px;
+    height: 26px;
 }
 
 .user-info {
