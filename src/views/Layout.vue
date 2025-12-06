@@ -193,6 +193,7 @@ export default {
     height: 100vh;
     color: #fff;
     font-family: 'Inter', sans-serif;
+    overflow: hidden;
 }
 
 .sidebar {
@@ -207,6 +208,7 @@ export default {
     position: relative;
     z-index: 950;
     transition: transform 0.35s ease;
+    overflow: hidden;
 }
 
 .sidebar.open {
@@ -311,6 +313,7 @@ export default {
     justify-content: center;
     background: rgba(255, 255, 255, 0.08); /* Fondo sutil */
     color: #D4AF37; /* Color de la silueta */
+    overflow: hidden;
 }
 
 .avatar svg {
@@ -379,7 +382,7 @@ export default {
 .content {
     flex: 1;
     padding: 40px;
-    overflow-y: auto;
+    overflow: hidden;
 }
 
 @media (max-width: 900px) {
