@@ -30,12 +30,15 @@
                         Dashboard</router-link>
                     <router-link to="/admin/drivers" class="menu-item" active-class="active">🚚
                         Transportadores</router-link>
+                        <router-link to="/admin/createOrders" class="menu-item" active-class="active">📦
+                        Pedidos</router-link>
                     <router-link to="/admin/assignRoutes" class="menu-item" active-class="active">🗺️ Asignar
                         rutas</router-link>
                     <router-link to="/admin/notifications" class="menu-item" active-class="active">
                         🔔 Notificaciones</router-link>
                     <router-link to="/admin/settings" class="menu-item" active-class="active">⚙️
                         Configuración</router-link>
+                    
                 </nav>
             </section>
 

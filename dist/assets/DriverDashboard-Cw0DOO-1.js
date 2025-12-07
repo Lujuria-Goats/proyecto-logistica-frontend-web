@@ -1,0 +1,1 @@
+import{_ as s,c as o,a as e,o as r}from"./index-BqbPIvdK.js";const t={name:"DriverDashboard"},n={class:"dashboard"};function d(c,a,i,l,_,p){return r(),o("div",n,[...a[0]||(a[0]=[e("h1",null,"Panel del Conductor",-1),e("p",null,"Bienvenido, aquí verás tus rutas asignadas.",-1)])])}const f=s(t,[["render",d],["__scopeId","data-v-7a6d9be1"]]);export{f as default};
