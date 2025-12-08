@@ -4,26 +4,26 @@
     <!-- HEADER -->
     <header class="page-header">
       <h1 class="page-title">Gestión de Pedidos</h1>
-      <p class="subtitle">Historial y creación de nuevas solicitudes</p>
+      <p class="subtitle">Historial de Mis Solicitudes</p>
     </header>
 
     <!-- PANEL PRINCIPAL -->
     <div class="main-panel">
-      
+
       <div class="split-content">
 
         <!-- IZQUIERDA: TABLA (75%) -->
         <div class="table-section">
           <div class="section-header">
-            <h2 class="panel-subtitle">📦 Listado de Pedidos</h2>
+            <h2 class="panel-subtitle">📦 Mis Pedidos</h2>
             <span class="badge">{{ orders.length }} registros</span>
           </div>
 
           <div class="table-scroll-area">
-            
+
             <!-- LOADING STATE -->
             <div v-if="isLoadingList" class="state-msg">
-              <div class="spinner"></div> Cargando historial...
+              <div class="spinner"></div> Cargando mis pedidos...
             </div>
 
             <table v-else class="custom-table">
@@ -37,7 +37,9 @@
               </thead>
               <tbody>
                 <tr v-if="orders.length === 0">
-                  <td colspan="4" class="empty-cell">No hay pedidos registrados.</td>
+                  <td colspan="4" class="empty-cell">
+                    No tienes pedidos registrados.
+                  </td>
                 </tr>
                 <tr v-for="order in orders" :key="order.id">
                   <td class="col-id">#{{ order.id }}</td>
@@ -65,30 +67,25 @@
         <!-- DERECHA: FORMULARIO -->
         <div class="form-section">
           <h3 class="form-title">Nuevo Pedido</h3>
-          
+
           <form @submit.prevent="addOrder" class="order-form">
-            
+
             <!-- INPUT DIRECCIÓN -->
             <div class="form-group search-group">
               <label>Dirección de Entrega *</label>
-              
+
               <button type="button" class="btn-open-map" @click="openPickerModal">
                 🗺️ Seleccionar en Mapa
               </button>
 
               <div class="input-wrapper">
-                <input 
-                  type="text" 
-                  v-model="searchQuery" 
-                  class="input-field" 
-                  placeholder="Escribe para buscar..." 
-                  @input="onSearchInput"
-                  required
-                >
+                <input type="text" v-model="searchQuery" class="input-field" placeholder="Escribe para buscar..."
+                  @input="onSearchInput" required>
                 <div v-if="isSearching" class="input-loader"></div>
 
                 <ul v-if="suggestions.length > 0" class="suggestions-list">
-                  <li v-for="item in suggestions" :key="item.id" class="suggestion-item" @click="selectSuggestion(item)">
+                  <li v-for="item in suggestions" :key="item.id" class="suggestion-item"
+                    @click="selectSuggestion(item)">
                     <span class="sug-icon">📍</span>
                     <div class="sug-text">
                       <span class="sug-main">{{ item.place_name.split(',')[0] }}</span>
@@ -101,7 +98,8 @@
 
             <div class="form-group">
               <label>Descripción *</label>
-              <textarea v-model="form.description" class="input-field textarea" rows="3" placeholder="Detalles del paquete..." required></textarea>
+              <textarea v-model="form.description" class="input-field textarea" rows="3"
+                placeholder="Detalles del paquete..." required></textarea>
             </div>
 
             <div class="form-row">
@@ -151,9 +149,12 @@
                   <div ref="infoMapContainer" class="map-container"></div>
                 </div>
                 <div class="order-info">
-                  <div class="info-row"><span class="label">📍 Dirección:</span><span class="value">{{ selectedOrder?.address }}</span></div>
-                  <div class="info-row"><span class="label">📦 Descripción:</span><span class="value">{{ selectedOrder?.description }}</span></div>
-                  <div class="info-row coords"><span class="label">🌐 Coordenadas:</span><span class="value">{{ selectedOrder?.lat }}, {{ selectedOrder?.lng }}</span></div>
+                  <div class="info-row"><span class="label">📍 Dirección:</span><span class="value">{{
+                      selectedOrder?.address }}</span></div>
+                  <div class="info-row"><span class="label">📦 Descripción:</span><span class="value">{{
+                      selectedOrder?.description }}</span></div>
+                  <div class="info-row coords"><span class="label">🌐 Coordenadas:</span><span class="value">{{
+                      selectedOrder?.lat }}, {{ selectedOrder?.lng }}</span></div>
                   <div class="info-row" v-if="selectedOrder?.requirePhoto">
                     <span class="label">📸 Evidencia:</span>
                     <span class="value highlight-gold">Requiere fotografía</span>
@@ -185,12 +186,14 @@
                 <div class="picker-info">
                   <p class="picker-label">Ubicación seleccionada:</p>
                   <p class="picker-address">{{ pickerTemp.address || 'Haz clic en el mapa...' }}</p>
-                  <p class="picker-coords" v-if="pickerTemp.lat">Lat: {{ pickerTemp.lat.toFixed(5) }} | Lng: {{ pickerTemp.lng.toFixed(5) }}</p>
+                  <p class="picker-coords" v-if="pickerTemp.lat">Lat: {{ pickerTemp.lat.toFixed(5) }} | Lng: {{
+                    pickerTemp.lng.toFixed(5) }}</p>
                 </div>
               </div>
               <footer class="modal-footer">
                 <button class="btn-cancel-modal" @click="closePickerModal">Cancelar</button>
-                <button class="btn-confirm-modal" @click="confirmPickerSelection" :disabled="!pickerTemp.lat">Usar esta ubicación</button>
+                <button class="btn-confirm-modal" @click="confirmPickerSelection" :disabled="!pickerTemp.lat">Usar esta
+                  ubicación</button>
               </footer>
             </div>
           </div>
@@ -212,17 +215,17 @@ export default {
     return {
       baseUrl: 'https://service.lujuria.crudzaso.com',
       mapboxAccessToken: "pk.eyJ1IjoianZlbGV6MDAwIiwiYSI6ImNtaWkzOHZ5dTAxbnkzZHE3Mmo2c2VnbjQifQ.R-ikqyiMMZVwUHOH9CJ6mg",
-      
-      orders: [], 
+
+      orders: [],
       isLoadingList: false,
       isSubmitting: false,
-      
-      form: { 
-        address: "", 
-        description: "", 
-        lat: 0, 
-        lng: 0, 
-        requirePhoto: false 
+
+      form: {
+        address: "",
+        description: "",
+        lat: 0,
+        lng: 0,
+        requirePhoto: false
       },
       searchQuery: "",
       suggestions: [],
@@ -243,13 +246,14 @@ export default {
     this.fetchOrders();
   },
   methods: {
-    // --- 1. OBTENER PEDIDOS (GET) ---
+    // --- 1. OBTENER PEDIDOS (Directo del API, ya filtrado por Backend) ---
     async fetchOrders() {
       this.isLoadingList = true;
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
 
+        // Llamada al API (El backend ahora solo devuelve MIS pedidos)
         const res = await fetch(`${this.baseUrl}/api/Orders`, {
           method: 'GET',
           headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
@@ -257,6 +261,7 @@ export default {
 
         if (res.ok) {
           const data = await res.json();
+          // Mapear datos para la vista
           this.orders = data.map(o => ({
             id: o.id,
             address: o.address,
@@ -264,18 +269,20 @@ export default {
             lat: o.latitude,
             lng: o.longitude,
             requirePhoto: o.requiresEvidence
-          })).reverse();
+          })).reverse(); // Ordenar del más reciente al más antiguo
+        } else {
+          console.error("Error API:", res.status);
         }
       } catch (err) {
-        console.error("Error cargando pedidos:", err);
+        console.error("Error de red cargando pedidos:", err);
       } finally {
         this.isLoadingList = false;
       }
     },
 
-    // --- 2. CREAR PEDIDO (POST CORREGIDO) ---
+    // --- 2. CREAR PEDIDO ---
     async addOrder() {
-      // 1. Sincronización básica
+      // Validaciones y lógica de preparación
       if (!this.form.address && this.searchQuery) {
         this.form.address = this.searchQuery;
       }
@@ -286,26 +293,19 @@ export default {
 
       this.isSubmitting = true;
 
-      // 2. Limpieza de Decimales (Vital para evitar overflow en BD)
-      // Usamos .toFixed(6) y volvemos a número
+      // Sanitización de datos para evitar errores 500
       const latFixed = parseFloat(Number(this.form.lat).toFixed(6)) || 0;
       const lngFixed = parseFloat(Number(this.form.lng).toFixed(6)) || 0;
-
-      // 3. RECORTAR STRING (Seguridad contra desbordamiento VARCHAR)
-      // Si tu BD tiene VARCHAR(100), esto evita el error 500
-      const safeAddress = this.form.address.substring(0, 200).trim(); 
+      const safeAddress = this.form.address.substring(0, 200).trim();
       const safeDescription = this.form.description.substring(0, 500).trim();
 
-      // 4. Payload Estrictamente Tipado (camelCase)
       const payload = {
         description: safeDescription,
         latitude: latFixed,
         longitude: lngFixed,
         address: safeAddress,
-        requiresEvidence: !!this.form.requirePhoto // Force boolean
+        requiresEvidence: !!this.form.requirePhoto
       };
-
-      console.log("🚀 Payload Final:", JSON.stringify(payload));
 
       try {
         const token = localStorage.getItem('token');
@@ -325,23 +325,14 @@ export default {
           throw new Error(errorText || `Error ${res.status}`);
         }
 
-        const newOrderData = await res.json();
+        // Recargamos la lista desde el servidor para ver el nuevo pedido
+        await this.fetchOrders();
 
-        // 5. Actualizar UI
-        const newOrderLocal = {
-          id: newOrderData.id || Date.now(),
-          address: newOrderData.address || payload.address,
-          description: newOrderData.description || payload.description,
-          lat: newOrderData.latitude || payload.latitude,
-          lng: newOrderData.longitude || payload.longitude,
-          requirePhoto: newOrderData.requiresEvidence || payload.requiresEvidence
-        };
-
-        this.orders.unshift(newOrderLocal);
+        // Limpiamos formulario
         this.resetForm();
 
       } catch (error) {
-        console.error("Error completo:", error);
+        console.error("Error guardando pedido:", error);
         alert("⚠️ Error al guardar: " + error.message);
       } finally {
         this.isSubmitting = false;
@@ -367,27 +358,26 @@ export default {
         if (res.ok) {
           this.orders = this.orders.filter(o => o.id !== id);
         } else {
-          alert("No se pudo eliminar.");
+          alert("No se pudo eliminar el pedido.");
         }
       } catch (error) {
         console.error(error);
       }
     },
 
-    // --- AUTOCOMPLETADO ---
+    // --- AUTOCOMPLETADO (MAPBOX) ---
     onSearchInput() {
       if (!this.searchQuery) {
         this.form.address = ""; this.form.lat = 0; this.form.lng = 0;
       }
       clearTimeout(this.searchTimeout);
       if (this.searchQuery.length < 3) { this.suggestions = []; return; }
-      
+
       this.isSearching = true;
       this.searchTimeout = setTimeout(() => { this.fetchSuggestions(); }, 350);
     },
 
     async fetchSuggestions() {
-      // Limitar a Colombia (co)
       const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(this.searchQuery)}.json?access_token=${this.mapboxAccessToken}&country=co&proximity=-75.56,6.25&types=address,poi&limit=5`;
       try {
         const res = await fetch(url);
@@ -397,11 +387,11 @@ export default {
     },
 
     selectSuggestion(item) {
-      this.searchQuery = item.place_name.split(',')[0]; 
-      this.form.address = item.place_name; 
+      this.searchQuery = item.place_name.split(',')[0];
+      this.form.address = item.place_name;
       this.form.lng = item.center[0];
       this.form.lat = item.center[1];
-      this.suggestions = []; 
+      this.suggestions = [];
     },
 
     getShortAddress(fullAddress) {
@@ -409,7 +399,7 @@ export default {
       return parts.slice(1).join(',').trim();
     },
 
-    // --- MODALES (MAPAS DARK-V11) ---
+    // --- MODALES (MAPAS) ---
     openInfoModal(order) {
       this.selectedOrder = order;
       this.showInfoModal = true;
@@ -447,8 +437,8 @@ export default {
     },
     initPickerMap() {
       mapboxgl.accessToken = this.mapboxAccessToken;
-      const startCenter = (this.form.lat && this.form.lng && this.form.lat !== 0) 
-        ? [this.form.lng, this.form.lat] 
+      const startCenter = (this.form.lat && this.form.lng && this.form.lat !== 0)
+        ? [this.form.lng, this.form.lat]
         : [-75.5658, 6.2476];
 
       const map = new mapboxgl.Map({
@@ -492,7 +482,7 @@ export default {
       this.form.lat = this.pickerTemp.lat;
       this.form.lng = this.pickerTemp.lng;
       this.form.address = this.pickerTemp.address;
-      this.searchQuery = this.pickerTemp.address.split(',')[0]; 
+      this.searchQuery = this.pickerTemp.address.split(',')[0];
       this.closePickerModal();
     }
   }
@@ -502,127 +492,712 @@ export default {
 <style scoped>
 /* ============= ESTRUCTURA MAESTRA ============= */
 .orders-page {
-  width: 100%; height: 100vh; overflow: hidden;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding-bottom: 5vh; padding-left: 20px; padding-right: 20px;
-  box-sizing: border-box; background: transparent;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 5vh;
+  padding-left: 20px;
+  padding-right: 20px;
+  box-sizing: border-box;
+  background: transparent;
 }
-.page-header { flex-shrink: 0; margin-bottom: 20px; text-align: center; }
-.page-title { margin: 0; font-size: 1.8rem; color: #d4af37; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
-.subtitle { margin: 5px 0 0; font-size: 0.9rem; color: #888; }
+
+.page-header {
+  flex-shrink: 0;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 1.8rem;
+  color: #d4af37;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+}
+
+.subtitle {
+  margin: 5px 0 0;
+  font-size: 0.9rem;
+  color: #888;
+}
 
 .main-panel {
-  width: 100%; max-width: 1250px; height: auto; max-height: 85vh; min-height: 600px;
-  display: flex; flex-direction: column; background: rgba(15, 12, 8, 0.96);
-  border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 16px;
-  backdrop-filter: blur(12px); box-shadow: 0 30px 80px rgba(0,0,0,0.8); overflow: hidden;
+  width: 100%;
+  max-width: 1250px;
+  height: auto;
+  max-height: 85vh;
+  min-height: 600px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(15, 12, 8, 0.96);
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
 }
-.split-content { display: flex; flex: 1; overflow: hidden; }
+
+.split-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
 
 /* TABLA */
-.table-section { flex: 3; display: flex; flex-direction: column; padding: 25px; border-right: 1px solid rgba(212, 175, 55, 0.1); }
-.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-shrink: 0; }
-.panel-subtitle { margin: 0; color: #d4af37; font-size: 1.2rem; }
-.badge { background: rgba(212,175,55,0.15); color: #d4af37; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: bold; }
-.table-scroll-area { flex: 1; overflow-y: auto; border-radius: 8px; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255,255,255,0.05); }
+.table-section {
+  flex: 3;
+  display: flex;
+  flex-direction: column;
+  padding: 25px;
+  border-right: 1px solid rgba(212, 175, 55, 0.1);
+}
 
-.custom-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-.custom-table th { background: rgba(212, 175, 55, 0.1); color: #d4af37; padding: 12px; text-align: left; position: sticky; top: 0; backdrop-filter: blur(5px); z-index: 10; font-weight: 600; border-bottom: 1px solid rgba(212, 175, 55, 0.2); }
-.custom-table td { padding: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); color: #ccc; vertical-align: middle; }
-.custom-table tr:hover { background: rgba(255, 255, 255, 0.03); }
-.col-id { width: 60px; color: #d4af37; font-family: monospace; font-weight: bold; }
-.desc-cell { max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #999; }
-.col-actions { width: 100px; text-align: center; }
-.empty-cell { text-align: center; padding: 30px; color: #666; font-style: italic; }
-.photo-badge { margin-right: 5px; cursor: help; font-size: 1rem; }
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  flex-shrink: 0;
+}
 
-.action-buttons { display: flex; gap: 8px; justify-content: center; }
-.btn-icon { background: transparent; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; padding: 5px 8px; cursor: pointer; font-size: 1rem; transition: all 0.2s; }
-.btn-icon.view:hover { background: rgba(212, 175, 55, 0.2); border-color: #d4af37; }
-.btn-icon.delete:hover { background: rgba(255, 80, 80, 0.2); border-color: #ff5050; }
+.panel-subtitle {
+  margin: 0;
+  color: #d4af37;
+  font-size: 1.2rem;
+}
+
+.badge {
+  background: rgba(212, 175, 55, 0.15);
+  color: #d4af37;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+.table-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.custom-table th {
+  background: rgba(212, 175, 55, 0.1);
+  color: #d4af37;
+  padding: 12px;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  backdrop-filter: blur(5px);
+  z-index: 10;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+}
+
+.custom-table td {
+  padding: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #ccc;
+  vertical-align: middle;
+}
+
+.custom-table tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.col-id {
+  width: 60px;
+  color: #d4af37;
+  font-family: monospace;
+  font-weight: bold;
+}
+
+.desc-cell {
+  max-width: 250px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #999;
+}
+
+.col-actions {
+  width: 100px;
+  text-align: center;
+}
+
+.empty-cell {
+  text-align: center;
+  padding: 30px;
+  color: #666;
+  font-style: italic;
+}
+
+.photo-badge {
+  margin-right: 5px;
+  cursor: help;
+  font-size: 1rem;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.btn-icon {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 5px 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.btn-icon.view:hover {
+  background: rgba(212, 175, 55, 0.2);
+  border-color: #d4af37;
+}
+
+.btn-icon.delete:hover {
+  background: rgba(255, 80, 80, 0.2);
+  border-color: #ff5050;
+}
 
 /* FORMULARIO */
-.form-section { flex: 1.2; background: rgba(212, 175, 55, 0.02); padding: 25px; display: flex; flex-direction: column; overflow-y: auto; }
-.form-title { margin: 0 0 20px 0; color: #d4af37; font-size: 1.1rem; border-bottom: 1px solid rgba(212, 175, 55, 0.2); padding-bottom: 10px; }
-.order-form { display: flex; flex-direction: column; gap: 15px; }
-.form-group { display: flex; flex-direction: column; gap: 6px; position: relative; }
-.form-row { display: flex; gap: 10px; }
-.form-row .form-group { flex: 1; }
-label { font-size: 0.8rem; color: #aaa; margin-left: 2px; }
-label small { color: #666; }
+.form-section {
+  flex: 1.2;
+  background: rgba(212, 175, 55, 0.02);
+  padding: 25px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
 
-.btn-open-map { margin-bottom: 5px; background: rgba(212, 175, 55, 0.1); border: 1px dashed #d4af37; color: #d4af37; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 600; text-align: left; transition: 0.2s; }
-.btn-open-map:hover { background: rgba(212, 175, 55, 0.2); }
+.form-title {
+  margin: 0 0 20px 0;
+  color: #d4af37;
+  font-size: 1.1rem;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+  padding-bottom: 10px;
+}
 
-.input-wrapper { position: relative; }
-.input-field { width: 100%; padding: 10px; background: #080808; border: 1px solid #333; border-radius: 6px; color: #fff; font-size: 0.9rem; box-sizing: border-box; transition: border-color 0.2s; }
-.input-field:focus { outline: none; border-color: #d4af37; background: #0f0c08; }
-.readonly { color: #666; cursor: default; border-color: #222; }
-.input-loader { position: absolute; right: 10px; top: 10px; width: 14px; height: 14px; border: 2px solid #d4af37; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+.order-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
 
-.suggestions-list { position: absolute; top: 100%; left: 0; right: 0; background: #121212; border: 1px solid #d4af37; border-top: none; border-radius: 0 0 8px 8px; z-index: 100; max-height: 200px; overflow-y: auto; box-shadow: 0 10px 20px rgba(0,0,0,0.9); padding: 0; margin: 0; list-style: none; }
-.suggestion-item { display: flex; gap: 12px; padding: 12px; border-bottom: 1px solid #222; cursor: pointer; align-items: center; }
-.suggestion-item:last-child { border-bottom: none; }
-.suggestion-item:hover { background: rgba(212, 175, 55, 0.15); }
-.sug-icon { font-size: 1.1rem; }
-.sug-text { display: flex; flex-direction: column; overflow: hidden; }
-.sug-main { font-size: 0.9rem; color: #fff; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sug-sub { font-size: 0.75rem; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
 
-.textarea { resize: vertical; min-height: 80px; font-family: inherit; }
+.form-row {
+  display: flex;
+  gap: 10px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+label {
+  font-size: 0.8rem;
+  color: #aaa;
+  margin-left: 2px;
+}
+
+label small {
+  color: #666;
+}
+
+.btn-open-map {
+  margin-bottom: 5px;
+  background: rgba(212, 175, 55, 0.1);
+  border: 1px dashed #d4af37;
+  color: #d4af37;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: left;
+  transition: 0.2s;
+}
+
+.btn-open-map:hover {
+  background: rgba(212, 175, 55, 0.2);
+}
+
+.input-wrapper {
+  position: relative;
+}
+
+.input-field {
+  width: 100%;
+  padding: 10px;
+  background: #080808;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: #d4af37;
+  background: #0f0c08;
+}
+
+.readonly {
+  color: #666;
+  cursor: default;
+  border-color: #222;
+}
+
+.input-loader {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #d4af37;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.suggestions-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #121212;
+  border: 1px solid #d4af37;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.9);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.suggestion-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid #222;
+  cursor: pointer;
+  align-items: center;
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover {
+  background: rgba(212, 175, 55, 0.15);
+}
+
+.sug-icon {
+  font-size: 1.1rem;
+}
+
+.sug-text {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sug-main {
+  font-size: 0.9rem;
+  color: #fff;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sug-sub {
+  font-size: 0.75rem;
+  color: #888;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
 
 /* SWITCH */
-.switch-container { display: flex; align-items: center; cursor: pointer; gap: 10px; }
-.switch-container input { display: none; }
-.slider { position: relative; width: 36px; height: 20px; background-color: #333; border-radius: 20px; transition: .4s; }
-.slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .4s; }
-input:checked + .slider { background-color: #d4af37; }
-input:checked + .slider:before { transform: translateX(16px); }
-.switch-text { font-size: 0.85rem; color: #ccc; }
+.switch-container {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  gap: 10px;
+}
 
-.btn-submit { margin-top: 10px; padding: 12px; background: #d4af37; border: none; border-radius: 6px; color: #000; font-weight: bold; cursor: pointer; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; }
-.btn-submit:hover { background: #ffdb60; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3); }
-.btn-submit:disabled { background: #665522; color: #999; cursor: not-allowed; transform: none; box-shadow: none; }
+.switch-container input {
+  display: none;
+}
 
-.spinner-mini { width: 16px; height: 16px; border: 2px solid #000; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
-.spinner { width: 30px; height: 30px; border: 3px solid #d4af37; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
-.state-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #666; }
+.slider {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background-color: #333;
+  border-radius: 20px;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: .4s;
+}
+
+input:checked+.slider {
+  background-color: #d4af37;
+}
+
+input:checked+.slider:before {
+  transform: translateX(16px);
+}
+
+.switch-text {
+  font-size: 0.85rem;
+  color: #ccc;
+}
+
+.btn-submit {
+  margin-top: 10px;
+  padding: 12px;
+  background: #d4af37;
+  border: none;
+  border-radius: 6px;
+  color: #000;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-submit:hover {
+  background: #ffdb60;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+}
+
+.btn-submit:disabled {
+  background: #665522;
+  color: #999;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.spinner-mini {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #000;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid #d4af37;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+.state-msg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #666;
+}
 
 /* MODALES */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 2000; backdrop-filter: blur(5px); }
-.modal-container { width: 100%; display: flex; justify-content: center; padding: 20px; }
-.modal-card { width: 100%; max-width: 600px; background: #141414; border: 1px solid #d4af37; border-radius: 12px; overflow: hidden; box-shadow: 0 30px 60px rgba(0,0,0,1); display: flex; flex-direction: column; }
-.large-modal { max-width: 800px; }
-.modal-header { padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; background: #0f0c08; }
-.modal-title { margin: 0; color: #d4af37; font-size: 1.2rem; }
-.modal-close-x { background: transparent; border: none; color: #888; font-size: 1.5rem; cursor: pointer; }
-.modal-close-x:hover { color: #fff; }
-.modal-body { padding: 0; display: flex; flex-direction: column; }
-.map-wrapper { width: 100%; height: 300px; border-bottom: 1px solid rgba(212,175,55,0.2); position: relative; }
-.large-map { height: 400px; }
-.map-container { width: 100%; height: 100%; }
-.map-tooltip { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: #d4af37; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; border: 1px solid #d4af37; pointer-events: none; }
-.order-info, .picker-info { padding: 20px; background: #1a1a1a; }
-.info-row { margin-bottom: 10px; display: flex; gap: 10px; }
-.info-row .label { color: #d4af37; font-weight: 600; min-width: 100px; }
-.info-row .value { color: #ccc; }
-.highlight-gold { color: #d4af37; font-weight: bold; border: 1px solid #d4af37; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
-.coords { font-family: monospace; font-size: 0.9rem; color: #888; }
-.picker-label { color: #888; font-size: 0.85rem; margin: 0 0 5px 0; }
-.picker-address { color: #fff; font-size: 1rem; font-weight: bold; margin: 0 0 5px 0; }
-.picker-coords { color: #d4af37; font-family: monospace; font-size: 0.85rem; margin: 0; }
-.modal-footer { padding: 15px; border-top: 1px solid rgba(255,255,255,0.1); text-align: right; background: #0f0c08; display: flex; justify-content: flex-end; gap: 10px; }
-.btn-close-modal, .btn-cancel-modal { background: transparent; border: 1px solid #d4af37; color: #d4af37; padding: 8px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; }
-.btn-close-modal:hover, .btn-cancel-modal:hover { background: rgba(212, 175, 55, 0.15); color: #fff; border-color: #fff; }
-.btn-confirm-modal { background: #d4af37; border: none; color: #000; padding: 8px 24px; border-radius: 6px; font-weight: 700; cursor: pointer; transition: 0.2s; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px; }
-.btn-confirm-modal:hover { background: #ffdb60; }
-.btn-confirm-modal:disabled { background: #554415; color: #888; cursor: not-allowed; }
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(5px);
+}
 
-@keyframes spin { to {transform: rotate(360deg);} }
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
-::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #d4af37; }
-.fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+.modal-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 600px;
+  background: #141414;
+  border: 1px solid #d4af37;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.large-modal {
+  max-width: 800px;
+}
+
+.modal-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0f0c08;
+}
+
+.modal-title {
+  margin: 0;
+  color: #d4af37;
+  font-size: 1.2rem;
+}
+
+.modal-close-x {
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.modal-close-x:hover {
+  color: #fff;
+}
+
+.modal-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-wrapper {
+  width: 100%;
+  height: 300px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+  position: relative;
+}
+
+.large-map {
+  height: 400px;
+}
+
+.map-container {
+  width: 100%;
+  height: 100%;
+}
+
+.map-tooltip {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: #d4af37;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  border: 1px solid #d4af37;
+  pointer-events: none;
+}
+
+.order-info,
+.picker-info {
+  padding: 20px;
+  background: #1a1a1a;
+}
+
+.info-row {
+  margin-bottom: 10px;
+  display: flex;
+  gap: 10px;
+}
+
+.info-row .label {
+  color: #d4af37;
+  font-weight: 600;
+  min-width: 100px;
+}
+
+.info-row .value {
+  color: #ccc;
+}
+
+.highlight-gold {
+  color: #d4af37;
+  font-weight: bold;
+  border: 1px solid #d4af37;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.coords {
+  font-family: monospace;
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.picker-label {
+  color: #888;
+  font-size: 0.85rem;
+  margin: 0 0 5px 0;
+}
+
+.picker-address {
+  color: #fff;
+  font-size: 1rem;
+  font-weight: bold;
+  margin: 0 0 5px 0;
+}
+
+.picker-coords {
+  color: #d4af37;
+  font-family: monospace;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.modal-footer {
+  padding: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: right;
+  background: #0f0c08;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-close-modal,
+.btn-cancel-modal {
+  background: transparent;
+  border: 1px solid #d4af37;
+  color: #d4af37;
+  padding: 8px 24px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+}
+
+.btn-close-modal:hover,
+.btn-cancel-modal:hover {
+  background: rgba(212, 175, 55, 0.15);
+  color: #fff;
+  border-color: #fff;
+}
+
+.btn-confirm-modal {
+  background: #d4af37;
+  border: none;
+  color: #000;
+  padding: 8px 24px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+}
+
+.btn-confirm-modal:hover {
+  background: #ffdb60;
+}
+
+.btn-confirm-modal:disabled {
+  background: #554415;
+  color: #888;
+  cursor: not-allowed;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d4af37;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
 </style>
