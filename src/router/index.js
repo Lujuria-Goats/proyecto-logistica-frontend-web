@@ -7,6 +7,7 @@ import Drivers from '../components/admin/Drivers.vue';
 import AssignRoutes from '../components/admin/AssignRoutes.vue';
 import Settings from '../components/admin/Settings.vue';
 import Notifications from '../components/admin/Notifications.vue';
+import CreateOrders from '../components/admin/CreateOrders.vue';
 
 const routes = [
   {
@@ -34,9 +35,10 @@ const routes = [
       { path: '', redirect: 'dashboard' },
       { path: 'dashboard', name: 'Dashboard', component: Dashboard },
       { path: 'drivers', name: 'Drivers', component: Drivers },
+      { path: 'createOrders', name: 'CreateOrders', component: CreateOrders },
       { path: 'assignRoutes', name: 'AssignRoutes', component: AssignRoutes },
       { path: 'settings', name: 'Settings', component: Settings },
-      { path: 'notifications', name: 'Notifications', component: Notifications }
+      { path: 'notifications', name: 'Notifications', component: Notifications },
 
     ]
   },

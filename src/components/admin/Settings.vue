@@ -8,37 +8,72 @@
     <!-- HEADER -->
     <header class="settings-header">
       <h1 class="title">Configuración de la Cuenta</h1>
-      <p class="subtitle">Gestiona tu información personal y seguridad</p>
+      <p class="subtitle">Información de sesión y seguridad</p>
     </header>
 
     <!-- SECCIONES -->
     <section class="settings-grid">
 
-      <!-- 🔹 INFORMACIÓN GENERAL -->
-      <div class="settings-card">
-        <h2 class="section-title">Información de la Cuenta</h2>
+      <!-- 🔹 INFORMACIÓN DEL TOKEN (SOLO LECTURA) -->
+      <div class="settings-card info-card">
+        <h2 class="section-title">👤 Información Personal</h2>
 
-        <div class="form-group">
-          <label>Nombre completo</label>
-          <input type="text" placeholder="Tu nombre" />
+        <div class="form-row">
+          <div class="form-group half">
+            <label>ID Usuario</label>
+            <input type="text" :value="user.id" readonly class="input-lock" />
+          </div>
+          <div class="form-group half">
+            <label>Rol</label>
+            <input type="text" :value="user.role" readonly class="input-lock highlight" />
+          </div>
         </div>
 
         <div class="form-group">
-          <label>Correo electrónico</label>
-          <input type="email" placeholder="correo@ejemplo.com" />
+          <label>Nombre Completo</label>
+          <input type="text" :value="user.fullName" readonly class="input-lock" />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group half">
+            <label>Usuario (User Name)</label>
+            <input type="text" :value="user.userName" readonly class="input-lock" />
+          </div>
+          <div class="form-group half">
+            <label>Celular</label>
+            <input type="text" :value="user.phoneNumber" readonly class="input-lock" />
+          </div>
         </div>
 
         <div class="form-group">
-          <label>Número de contacto</label>
-          <input type="text" placeholder="+57 300 000 0000" />
+          <label>Correo Electrónico</label>
+          <input type="email" :value="user.email" readonly class="input-lock" />
         </div>
-
-        <button class="btn-save">Guardar cambios</button>
       </div>
 
-      <!-- 🔸 CAMBIAR CONTRASEÑA -->
+      <!-- 🏢 INFORMACIÓN DE EMPRESA (SOLO LECTURA) -->
       <div class="settings-card">
-        <h2 class="section-title">Cambiar Contraseña</h2>
+        <h2 class="section-title">🏢 Datos de la Empresa</h2>
+
+        <div class="form-group">
+          <label>ID Empresa</label>
+          <input type="text" :value="user.companyId" readonly class="input-lock" />
+        </div>
+
+        <div class="form-group">
+          <label>Nombre de la Empresa</label>
+          <input type="text" :value="user.companyName" readonly class="input-lock" />
+        </div>
+
+        <div class="form-group">
+          <label>NIT / Identificación Fiscal</label>
+          <input type="text" :value="user.companyNit" readonly class="input-lock" />
+        </div>
+      </div>
+
+      <!-- 🔸 CAMBIAR CONTRASEÑA (ESTO SÍ ES EDITABLE) -->
+      <div class="settings-card">
+        <h2 class="section-title">🔐 Seguridad</h2>
 
         <div class="form-group">
           <label>Contraseña actual</label>
@@ -66,6 +101,59 @@
 <script>
 export default {
   name: "Settings",
+  data() {
+    return {
+      user: {
+        id: "",
+        email: "",
+        userName: "",
+        fullName: "",
+        phoneNumber: "",
+        companyId: "",
+        companyNit: "",
+        companyName: "",
+        role: ""
+      }
+    };
+  },
+  mounted() {
+    this.loadDataFromToken();
+  },
+  methods: {
+    loadDataFromToken() {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+
+      try {
+        // Decodificar Base64 soportando caracteres especiales (tildes)
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+
+        const payload = JSON.parse(jsonPayload);
+
+        // Mapear los datos del JSON que me diste a las variables locales
+        this.user = {
+          id: payload.nameid || "N/A",
+          email: payload.email || "N/A",
+          userName: payload.userName || "N/A",
+          fullName: payload.fullName || "Usuario",
+          phoneNumber: payload.phoneNumber || "N/A",
+          companyId: payload.companyId || "N/A",
+          companyNit: payload.companyNit || "N/A",
+          companyName: payload.companyName || "N/A",
+          role: payload.role || "N/A"
+        };
+
+        console.log("Datos cargados:", this.user);
+
+      } catch (error) {
+        console.error("Error leyendo token en settings:", error);
+      }
+    }
+  }
 };
 </script>
 
@@ -107,6 +195,7 @@ export default {
   padding: 35px;
   color: #fff;
   font-family: "Inter", sans-serif;
+  padding-bottom: 80px; /* Espacio extra abajo */
 }
 
 /* HEADER */
@@ -114,6 +203,7 @@ export default {
   font-size: 28px;
   color: #D4AF37;
   font-weight: 700;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.5);
 }
 
 .subtitle {
@@ -128,7 +218,7 @@ export default {
 .settings-grid {
   margin-top: 35px;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
   gap: 25px;
 }
 
@@ -136,25 +226,28 @@ export default {
 /* TARJETAS */
 /* ================================ */
 .settings-card {
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(212,175,55,0.25);
+  background: rgba(15, 12, 8, 0.7);
+  border: 1px solid rgba(212,175,55,0.15);
   border-radius: 14px;
-  padding: 22px;
-  backdrop-filter: blur(6px);
+  padding: 25px;
+  backdrop-filter: blur(10px);
   transition: 0.25s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .settings-card:hover {
-  transform: translateY(-3px);
-  border-color: #D4AF37;
-  box-shadow: 0 0 20px rgba(212,175,55,0.15);
+  border-color: rgba(212,175,55,0.4);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 
 .section-title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   color: #D4AF37;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-bottom: 10px;
 }
 
 /* ================================ */
@@ -163,46 +256,85 @@ export default {
 .form-group {
   display: flex;
   flex-direction: column;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
+}
+
+/* Filas de dos columnas */
+.form-row {
+  display: flex;
+  gap: 15px;
+}
+
+.form-group.half {
+  flex: 1;
 }
 
 label {
-  font-size: 14px;
-  margin-bottom: 4px;
-  opacity: 0.85;
+  font-size: 13px;
+  margin-bottom: 6px;
+  color: #bbb;
+  font-weight: 500;
 }
 
 input {
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(212,175,55,0.3);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
   color: #fff;
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 12px 14px;
+  border-radius: 8px;
   outline: none;
+  font-size: 14px;
   transition: 0.2s;
 }
 
-input:focus {
+/* INPUTS EDITABLES (PASSWORD) */
+input:not([readonly]):focus {
   border-color: #D4AF37;
-  background: rgba(255,255,255,0.12);
+  background: #000;
+  box-shadow: 0 0 0 2px rgba(212,175,55,0.1);
+}
+
+/* INPUTS READONLY (BLOQUEADOS) */
+.input-lock {
+  background: rgba(0, 0, 0, 0.4); /* Fondo más oscuro */
+  border: 1px dashed rgba(255, 255, 255, 0.15); /* Borde punteado sutil */
+  color: #ccc; /* Texto un poco más gris */
+  cursor: not-allowed;
+  font-family: monospace; /* Fuente tipo código para datos técnicos */
+}
+
+.input-lock:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.highlight {
+  color: #D4AF37;
+  font-weight: bold;
+  border-color: rgba(212,175,55,0.3);
 }
 
 /* BOTÓN */
 .btn-save {
-  margin-top: 10px;
+  margin-top: 15px;
   width: 100%;
-  padding: 12px;
-  border-radius: 10px;
+  padding: 14px;
+  border-radius: 8px;
   background: #D4AF37;
   border: none;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 700;
+  color: #000;
   transition: 0.25s;
+  text-transform: uppercase;
+  font-size: 13px;
+  letter-spacing: 0.5px;
 }
 
 .btn-save:hover {
-  background: #e2c75e;
-  box-shadow: 0 0 15px rgba(212,175,55,0.35);
+  background: #f0c953;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(212,175,55,0.25);
 }
 
 </style>

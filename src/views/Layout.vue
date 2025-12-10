@@ -30,12 +30,15 @@
                         Dashboard</router-link>
                     <router-link to="/admin/drivers" class="menu-item" active-class="active">🚚
                         Transportadores</router-link>
+                    <router-link to="/admin/createOrders" class="menu-item" active-class="active">📦
+                        Pedidos</router-link>
                     <router-link to="/admin/assignRoutes" class="menu-item" active-class="active">🗺️ Asignar
                         rutas</router-link>
                     <router-link to="/admin/notifications" class="menu-item" active-class="active">
                         🔔 Notificaciones</router-link>
                     <router-link to="/admin/settings" class="menu-item" active-class="active">⚙️
                         Configuración</router-link>
+                    
                 </nav>
             </section>
 
@@ -49,7 +52,8 @@
                 </div>
 
                 <div class="user-info">
-                    <p class="name">{{ fullName }}</p>
+                    <!-- AQUI MOSTRAMOS EL COMPANY NAME -->
+                    <p class="name">{{ companyName }}</p>
                     <p class="role">{{ userRoleTranslated }}</p>
                     
                     <!-- BOTÓN DE CERRAR SESIÓN MEJORADO -->
@@ -75,9 +79,8 @@ export default {
 
     data() {
         return {
-            fullName: "Cargando...",
+            companyName: "Cargando...", // 1. Cambiado de fullName a companyName
             userRoleTranslated: "",
-            // avatarUrl eliminado ya que usamos silueta estática
             sidebarOpen: false
         };
     },
@@ -103,9 +106,13 @@ export default {
                     }).join(''));
 
                     const payload = JSON.parse(jsonPayload);
+                    
+                    // Debug: Ver qué trae el token en consola por si el nombre de la propiedad es diferente
+                    console.log("Datos del Token:", payload);
 
-                    // Nombre (Email)
-                    this.fullName = payload.email || "Usuario";
+                    // 2. Extraer Company Name
+                    // Buscamos 'companyName' (minúscula), 'CompanyName' (mayúscula) o fallback a email
+                    this.companyName = payload.companyName || payload.CompanyName || payload.email || "Empresa";
 
                     // Traducir Rol
                     const rawRole = payload.role || "";
@@ -119,10 +126,10 @@ export default {
 
                 } catch (error) {
                     console.error("Error leyendo token:", error);
-                    this.fullName = "Invitado";
+                    this.companyName = "Invitado";
                 }
             } else {
-                this.fullName = "Invitado";
+                this.companyName = "Invitado";
             }
         },
 

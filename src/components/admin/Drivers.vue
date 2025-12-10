@@ -1,16 +1,16 @@
 <template>
   <div class="drivers-page">
 
-    <!-- HEADER (Muy compacto) -->
+    <!-- HEADER -->
     <header class="page-header">
       <h1 class="page-title">Gestión de Flota</h1>
       <p class="subtitle">Administración de conductores</p>
     </header>
 
-    <!-- PANEL PRINCIPAL (Flex Container que ocupa el resto) -->
+    <!-- PANEL PRINCIPAL -->
     <div class="main-panel">
 
-      <!-- SECCIÓN BUSCADOR (Fija arriba) -->
+      <!-- SECCIÓN BUSCADOR -->
       <div class="search-section">
         <div class="search-wrapper">
           <span class="search-icon">🔍</span>
@@ -29,7 +29,7 @@
                     <p class="sug-phone">{{ driver.phone }}</p>
                   </div>
                 </div>
-                <!-- Botón abre modal -->
+                <!-- Botón abre modal de contratación -->
                 <button class="btn-quick-hire" @mousedown.prevent="prepareHire(driver)">
                   Contratar
                 </button>
@@ -44,7 +44,7 @@
         </div>
       </div>
 
-      <!-- SECCIÓN LISTA (Esta es la única que hace Scroll) -->
+      <!-- SECCIÓN LISTA -->
       <div class="list-wrapper">
         <div class="list-header-row">
           <h2 class="panel-subtitle">Mis Conductores</h2>
@@ -73,6 +73,7 @@
                   <div class="detail-row desc">{{ driver.description }}</div>
                 </div>
               </div>
+              <!-- BOTÓN DESVINCULAR (Abre Modal) -->
               <button class="btn-delete" @click="fireDriver(driver)">✕ Desvincular</button>
             </div>
           </div>
@@ -81,8 +82,10 @@
 
     </div>
 
-    <!-- MODAL CONFIRMACIÓN -->
+    <!-- TELEPORT PARA MODALES -->
     <teleport to="body">
+      
+      <!-- MODAL 1: CONFIRMACIÓN CONTRATACIÓN -->
       <transition name="fade">
         <div v-if="showHireModal" class="modal-overlay" @click.self="cancelHire">
           <div class="modal-container">
@@ -98,6 +101,30 @@
           </div>
         </div>
       </transition>
+
+      <!-- MODAL 2: CONFIRMACIÓN DESVINCULACIÓN (NUEVO) -->
+      <transition name="fade">
+        <div v-if="showFireModal" class="modal-overlay" @click.self="cancelFire">
+          <div class="modal-container">
+            <div class="modal-content">
+              <div class="modal-icon">⚠️</div>
+              <h3 class="modal-title">Desvincular Conductor</h3>
+              <p>
+                ¿Estás seguro de eliminar a <br>
+                <strong>{{ driverToFire?.name }}</strong> de tu lista?
+              </p>
+              <p class="modal-warning-text">Esta acción removerá el acceso del conductor a tus pedidos.</p>
+              
+              <div class="modal-actions">
+                <button class="btn-cancel" @click="cancelFire">Cancelar</button>
+                <!-- Botón con estilo consistente -->
+                <button class="btn-confirm btn-danger-mode" @click="confirmFire">Sí, Desvincular</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+
     </teleport>
 
   </div>
@@ -109,14 +136,24 @@ export default {
   data() {
     return {
       baseUrl: 'https://service.lujuria.crudzaso.com',
+      
+      // Buscador
       searchPhone: "",
       showSuggestions: false,
+      
+      // Modal Contratar
       showHireModal: false,
       driverToHire: null,
+
+      // Modal Desvincular
+      showFireModal: false,
+      driverToFire: null,
+      
+      // Datos
       isLoadingMyDrivers: false,
       isLoadingMarket: false,
-      myDrivers: [],
-      allMarketDrivers: [],
+      myDrivers: [],       
+      allMarketDrivers: [], 
     };
   },
   computed: {
@@ -124,6 +161,7 @@ export default {
       if (!this.searchPhone) return [];
       const term = this.searchPhone.trim().toLowerCase();
       const myIds = new Set(this.myDrivers.map(d => d.id));
+      
       return this.allMarketDrivers.filter(driver => {
         if (myIds.has(driver.id)) return false;
         return driver.phone.includes(term);
@@ -138,6 +176,8 @@ export default {
       await this.fetchMyDrivers();
       this.fetchMarketDrivers();
     },
+
+    // --- CARGAS ---
     async fetchMyDrivers() {
       this.isLoadingMyDrivers = true;
       try {
@@ -154,6 +194,7 @@ export default {
       } catch (e) { console.error(e); }
       finally { this.isLoadingMyDrivers = false; }
     },
+
     async fetchMarketDrivers() {
       this.isLoadingMarket = true;
       try {
@@ -169,6 +210,8 @@ export default {
       } catch (e) { console.error(e); }
       finally { this.isLoadingMarket = false; }
     },
+
+    // --- LOGICA CONTRATAR ---
     prepareHire(driver) {
       this.driverToHire = driver;
       this.showHireModal = true;
@@ -180,8 +223,9 @@ export default {
     },
     async confirmHire() {
       if (!this.driverToHire) return;
-      const btn = document.querySelector('.btn-confirm');
+      const btn = document.querySelectorAll('.btn-confirm')[0]; // El primer btn confirm (hack visual simple)
       if (btn) { btn.innerText = "..."; btn.disabled = true; }
+      
       try {
         const token = localStorage.getItem('token');
         const res = await fetch(`${this.baseUrl}/api/Drivers/link`, {
@@ -189,23 +233,67 @@ export default {
           headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ phoneNumber: this.driverToHire.phone })
         });
+        
         if (!res.ok) throw new Error("Error al contratar");
+        
         this.myDrivers.push(this.driverToHire);
         this.searchPhone = "";
         this.cancelHire();
       } catch (e) { alert("⚠️ " + e.message); }
-      finally { if (btn) { btn.innerText = "Sí, Contratar"; btn.disabled = false; } }
+      finally { 
+        if (btn) { btn.innerText = "Sí, Contratar"; btn.disabled = false; } 
+      }
     },
-    async fireDriver(driver) {
-      if (!confirm(`¿Desvincular a ${driver.name}?`)) return;
+
+    // --- LOGICA DESVINCULAR (CON MODAL) ---
+    fireDriver(driver) {
+      this.driverToFire = driver;
+      this.showFireModal = true;
+    },
+    cancelFire() {
+      this.showFireModal = false;
+      this.driverToFire = null;
+    },
+    async confirmFire() {
+      if (!this.driverToFire) return;
+      
+      // Feedback visual en el botón del modal
+      const btn = document.querySelector('.btn-danger-mode');
+      if (btn) { btn.innerText = "..."; btn.disabled = true; }
+
       try {
         const token = localStorage.getItem('token');
-        await fetch(`${this.baseUrl}/api/Drivers/${driver.id}`, {
-          method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
+        const res = await fetch(`${this.baseUrl}/api/Drivers/${this.driverToFire.id}`, {
+          method: 'DELETE', 
+          headers: { 'Authorization': `Bearer ${token}` }
         });
-        this.myDrivers = this.myDrivers.filter(d => d.id !== driver.id);
-      } catch (e) { alert("Error: " + e.message); }
+
+        if (!res.ok) {
+            const txt = await res.text();
+            throw new Error(txt || "Error al eliminar");
+        }
+
+        // Éxito: Actualizar listas localmente
+        const removedDriver = this.driverToFire;
+        this.myDrivers = this.myDrivers.filter(d => d.id !== removedDriver.id);
+        
+        // Devolver al mercado
+        const exists = this.allMarketDrivers.find(d => d.id === removedDriver.id);
+        if(!exists) {
+            this.allMarketDrivers.push(removedDriver);
+        }
+
+        this.cancelFire(); // Cerrar modal
+
+      } catch (e) { 
+        console.error(e);
+        alert("⚠️ Error: " + e.message); 
+      } finally {
+        if (btn) { btn.innerText = "Sí, Desvincular"; btn.disabled = false; }
+      }
     },
+
+    // Helpers
     normalize(data) {
       return data.map(d => ({
         id: d.id || d.Id || 0,
@@ -224,7 +312,7 @@ export default {
 .drivers-page {
   width: 100%;
   height: 100vh;
-  overflow: hidden; /* Cero scroll en la ventana principal */
+  overflow: hidden;
   
   display: flex;
   flex-direction: column;
@@ -251,7 +339,6 @@ export default {
 /* ============= PANEL PRINCIPAL (TAMAÑO AUMENTADO) ============= */
 .main-panel {
   width: 100%;
-  /* MISMAS DIMENSIONES QUE ASSIGN ROUTES */
   max-width: 1150px; 
   height: auto;
   max-height: 85vh;
@@ -266,8 +353,6 @@ export default {
   backdrop-filter: blur(12px);
   box-shadow: 0 30px 80px rgba(0,0,0,0.8);
   overflow: hidden;
-  
-  /* El panel incluye el buscador arriba, el padding interno lo manejan las secciones */
 }
 
 /* ============= SECCIÓN BUSCADOR (FIJA ARRIBA) ============= */
@@ -326,13 +411,12 @@ export default {
   padding: 10px; font-size: 0.9rem; border-radius: 6px; margin-top: 8px; border: 1px solid #444;
 }
 
-/* ============= LISTA Y SCROLL (EXPANDIBLE) ============= */
+/* ============= LISTA Y SCROLL ============= */
 .list-wrapper {
-  flex: 1; /* Ocupa todo el espacio sobrante en el panel grande */
-  display: flex;
-  flex-direction: column;
+  flex: 1; 
+  display: flex; flex-direction: column;
   padding: 0 30px 30px 30px;
-  min-height: 0; /* Clave para el scroll interno */
+  min-height: 0; 
 }
 
 .list-header-row {
@@ -344,7 +428,6 @@ export default {
 .panel-subtitle { margin: 0; color: #d4af37; font-size: 1.2rem; }
 .badge { background: rgba(212,175,55,0.15); color: #d4af37; padding: 4px 10px; border-radius: 12px; font-size: 0.85rem; font-weight: bold; }
 
-/* ÁREA DE SCROLL INTERNO */
 .scroll-area {
   flex: 1; 
   overflow-y: auto;
@@ -355,10 +438,8 @@ export default {
   border: 1px solid rgba(255,255,255,0.02);
 }
 
-/* GRID DE TARJETAS (IGUAL A ASSIGN ROUTES) */
 .cards-grid {
   display: grid;
-  /* Minmax 260px igual que en Assign Routes */
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 15px;
   padding: 10px;
@@ -402,7 +483,7 @@ export default {
 .spinner { width: 30px; height: 30px; border: 3px solid #d4af37; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 15px; }
 @keyframes spin { to {transform: rotate(360deg);} }
 
-/* MODAL */
+/* MODAL GLOBAL */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.85);
   display: flex; align-items: center; justify-content: center; z-index: 2000;
@@ -414,19 +495,21 @@ export default {
 }
 .modal-icon { font-size: 2.5rem; margin-bottom: 15px; }
 .modal-title { margin: 0 0 10px; color: #d4af37; font-size: 1.4rem; }
+.modal-warning-text { color: #888; font-size: 0.85rem; margin: 10px 0 0 0; }
+
 .modal-actions { margin-top: 25px; display: flex; gap: 15px; justify-content: center; }
 .btn-cancel { background: transparent; border: 1px solid #666; color: #ccc; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
 .btn-cancel:hover { border-color: #fff; color: #fff; }
 .btn-confirm { background: #d4af37; border: none; color: #000; font-weight: bold; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
 .btn-confirm:hover { background: #ffdb60; }
 
-/* SCROLLBAR */
+/* Scrollbar */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
 ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; border: 2px solid transparent; background-clip: content-box; }
 ::-webkit-scrollbar-thumb:hover { background-color: #d4af37; }
 
-/* ANIMACIONES */
+/* Animaciones */
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s, transform 0.2s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(-5px); }
 </style>
