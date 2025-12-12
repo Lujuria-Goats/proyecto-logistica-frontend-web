@@ -10,41 +10,34 @@
     <!-- PANEL PRINCIPAL -->
     <div class="main-panel">
 
-      <!-- SECCIÓN BUSCADOR -->
+      <!-- SECCIÓN BUSCADOR (MODIFICADA: INPUT + BOTÓN) -->
       <div class="search-section">
-        <div class="search-wrapper">
-          <span class="search-icon">🔍</span>
-          <input type="text" v-model="searchPhone" placeholder="Buscar conductor por teléfono para contratar..."
-            class="main-search-input" @focus="showSuggestions = true" @blur="hideSuggestionsDelay" />
-
-          <!-- SUGERENCIAS -->
-          <transition name="fade">
-            <div v-if="searchPhone && recommendedDrivers.length > 0" class="suggestions-dropdown">
-              <div class="suggestion-header">Resultados ({{ recommendedDrivers.length }})</div>
-              <div v-for="driver in recommendedDrivers" :key="driver.id" class="suggestion-item">
-                <div class="suggestion-info">
-                  <span class="mini-icon">👤</span>
-                  <div>
-                    <p class="sug-name">{{ driver.name }}</p>
-                    <p class="sug-phone">{{ driver.phone }}</p>
-                  </div>
-                </div>
-                <!-- Botón abre modal de contratación -->
-                <button class="btn-quick-hire" @mousedown.prevent="prepareHire(driver)">
-                  Contratar
-                </button>
-              </div>
-            </div>
-          </transition>
-
-          <!-- SIN RESULTADOS -->
-          <div v-if="searchPhone && recommendedDrivers.length === 0 && !isLoadingMarket" class="no-results">
-            No encontrado / Ya contratado
+        <div class="input-group">
+          <div class="input-wrapper">
+            <span class="search-icon">📞</span>
+            <input 
+              type="text" 
+              v-model="searchPhone" 
+              placeholder="Número de celular completo..."
+              class="main-search-input" 
+              @keyup.enter="handleManualHire"
+            />
           </div>
+          <!-- BOTÓN PARA CONTRATAR DIRECTAMENTE -->
+          <button class="btn-action-hire" @click="handleManualHire">
+            Contratar
+          </button>
         </div>
+
+        <!-- DIV DE ADVERTENCIA (SOLO SI HAY ERROR) -->
+        <transition name="fade">
+          <div v-if="searchMessage" :class="['message-box', messageType]">
+            {{ searchMessage }}
+          </div>
+        </transition>
       </div>
 
-      <!-- SECCIÓN LISTA -->
+      <!-- SECCIÓN LISTA (MIS CONDUCTORES) -->
       <div class="list-wrapper">
         <div class="list-header-row">
           <h2 class="panel-subtitle">Mis Conductores</h2>
@@ -73,7 +66,6 @@
                   <div class="detail-row desc">{{ driver.description }}</div>
                 </div>
               </div>
-              <!-- BOTÓN DESVINCULAR (Abre Modal) -->
               <button class="btn-delete" @click="fireDriver(driver)">✕ Desvincular</button>
             </div>
           </div>
@@ -93,6 +85,9 @@
               <div class="modal-icon">🤝</div>
               <h3 class="modal-title">Confirmar Contratación</h3>
               <p>¿Deseas vincular a <strong>{{ driverToHire?.name }}</strong> a tu flota?</p>
+              <div class="modal-details-confirm">
+                <p>📞 {{ driverToHire?.phone }}</p>
+              </div>
               <div class="modal-actions">
                 <button class="btn-cancel" @click="cancelHire">Cancelar</button>
                 <button class="btn-confirm" @click="confirmHire">Sí, Contratar</button>
@@ -102,7 +97,7 @@
         </div>
       </transition>
 
-      <!-- MODAL 2: CONFIRMACIÓN DESVINCULACIÓN (NUEVO) -->
+      <!-- MODAL 2: CONFIRMACIÓN DESVINCULACIÓN -->
       <transition name="fade">
         <div v-if="showFireModal" class="modal-overlay" @click.self="cancelFire">
           <div class="modal-container">
@@ -113,11 +108,9 @@
                 ¿Estás seguro de eliminar a <br>
                 <strong>{{ driverToFire?.name }}</strong> de tu lista?
               </p>
-              <p class="modal-warning-text">Esta acción removerá el acceso del conductor a tus pedidos.</p>
               
               <div class="modal-actions">
                 <button class="btn-cancel" @click="cancelFire">Cancelar</button>
-                <!-- Botón con estilo consistente -->
                 <button class="btn-confirm btn-danger-mode" @click="confirmFire">Sí, Desvincular</button>
               </div>
             </div>
@@ -137,36 +130,22 @@ export default {
     return {
       baseUrl: 'https://service.lujuria.crudzaso.com',
       
-      // Buscador
+      // Buscador manual
       searchPhone: "",
-      showSuggestions: false,
+      searchMessage: "", // Mensaje de error o info
+      messageType: "",   // 'error' o 'info'
       
-      // Modal Contratar
+      // Modales
       showHireModal: false,
       driverToHire: null,
-
-      // Modal Desvincular
       showFireModal: false,
       driverToFire: null,
       
       // Datos
       isLoadingMyDrivers: false,
-      isLoadingMarket: false,
       myDrivers: [],       
-      allMarketDrivers: [], 
+      allMarketDrivers: [], // Se carga para validar si el número existe
     };
-  },
-  computed: {
-    recommendedDrivers() {
-      if (!this.searchPhone) return [];
-      const term = this.searchPhone.trim().toLowerCase();
-      const myIds = new Set(this.myDrivers.map(d => d.id));
-      
-      return this.allMarketDrivers.filter(driver => {
-        if (myIds.has(driver.id)) return false;
-        return driver.phone.includes(term);
-      }).slice(0, 5);
-    }
   },
   mounted() {
     this.initData();
@@ -177,7 +156,7 @@ export default {
       this.fetchMarketDrivers();
     },
 
-    // --- CARGAS ---
+    // --- CARGAS DE DATOS ---
     async fetchMyDrivers() {
       this.isLoadingMyDrivers = true;
       try {
@@ -196,7 +175,6 @@ export default {
     },
 
     async fetchMarketDrivers() {
-      this.isLoadingMarket = true;
       try {
         const token = localStorage.getItem('token');
         const res = await fetch(`${this.baseUrl}/api/Users/drivers`, {
@@ -208,22 +186,54 @@ export default {
           this.allMarketDrivers = this.normalize(list);
         }
       } catch (e) { console.error(e); }
-      finally { this.isLoadingMarket = false; }
     },
 
-    // --- LOGICA CONTRATAR ---
-    prepareHire(driver) {
-      this.driverToHire = driver;
-      this.showHireModal = true;
-      this.showSuggestions = false;
+    // --- LOGICA DEL BOTÓN DE BUSQUEDA/CONTRATAR ---
+    handleManualHire() {
+      // 1. Limpiar mensajes previos
+      this.searchMessage = "";
+      this.messageType = "";
+
+      if (!this.searchPhone.trim()) {
+        this.searchMessage = "Por favor ingrese un número de teléfono.";
+        this.messageType = "error";
+        return;
+      }
+
+      const term = this.searchPhone.trim();
+
+      // 2. Verificar si ya es mío
+      const isMine = this.myDrivers.find(d => d.phone === term);
+      if (isMine) {
+        this.searchMessage = `El conductor ${isMine.name} ya pertenece a tu flota.`;
+        this.messageType = "info";
+        return;
+      }
+
+      // 3. Verificar si existe en el mercado
+      // NOTA: Comparamos el número exacto o si está contenido, según prefieras.
+      // Aquí uso includes para ser flexible, pero si quieres exacto usa ===
+      const candidate = this.allMarketDrivers.find(d => d.phone === term);
+
+      if (candidate) {
+        // SI EXISTE: Abrir modal
+        this.driverToHire = candidate;
+        this.showHireModal = true;
+      } else {
+        // NO EXISTE: Mostrar advertencia en el div
+        this.searchMessage = "No hay ningún conductor registrado con ese número.";
+        this.messageType = "error";
+      }
     },
+
+    // --- LOGICA CONFIRMAR CONTRATACIÓN ---
     cancelHire() {
       this.showHireModal = false;
       this.driverToHire = null;
     },
     async confirmHire() {
       if (!this.driverToHire) return;
-      const btn = document.querySelectorAll('.btn-confirm')[0]; // El primer btn confirm (hack visual simple)
+      const btn = document.querySelectorAll('.btn-confirm')[0]; 
       if (btn) { btn.innerText = "..."; btn.disabled = true; }
       
       try {
@@ -234,18 +244,28 @@ export default {
           body: JSON.stringify({ phoneNumber: this.driverToHire.phone })
         });
         
-        if (!res.ok) throw new Error("Error al contratar");
+        if (!res.ok) throw new Error("No se pudo vincular.");
         
+        // Agregar a mis conductores y limpiar
         this.myDrivers.push(this.driverToHire);
         this.searchPhone = "";
+        this.searchMessage = "Conductor vinculado exitosamente.";
+        this.messageType = "info"; // Usamos estilo info para éxito temporal
+        
+        // Borrar mensaje de éxito después de 3 seg
+        setTimeout(() => { 
+            if(this.messageType === 'info') this.searchMessage = ""; 
+        }, 3000);
+
         this.cancelHire();
-      } catch (e) { alert("⚠️ " + e.message); }
-      finally { 
+      } catch (e) { 
+        alert("⚠️ Error: " + e.message); 
+      } finally { 
         if (btn) { btn.innerText = "Sí, Contratar"; btn.disabled = false; } 
       }
     },
 
-    // --- LOGICA DESVINCULAR (CON MODAL) ---
+    // --- LOGICA DESVINCULAR ---
     fireDriver(driver) {
       this.driverToFire = driver;
       this.showFireModal = true;
@@ -256,8 +276,6 @@ export default {
     },
     async confirmFire() {
       if (!this.driverToFire) return;
-      
-      // Feedback visual en el botón del modal
       const btn = document.querySelector('.btn-danger-mode');
       if (btn) { btn.innerText = "..."; btn.disabled = true; }
 
@@ -268,32 +286,19 @@ export default {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        if (!res.ok) {
-            const txt = await res.text();
-            throw new Error(txt || "Error al eliminar");
-        }
+        if (!res.ok) throw new Error("Error al eliminar");
 
-        // Éxito: Actualizar listas localmente
-        const removedDriver = this.driverToFire;
-        this.myDrivers = this.myDrivers.filter(d => d.id !== removedDriver.id);
-        
-        // Devolver al mercado
-        const exists = this.allMarketDrivers.find(d => d.id === removedDriver.id);
-        if(!exists) {
-            this.allMarketDrivers.push(removedDriver);
-        }
-
-        this.cancelFire(); // Cerrar modal
+        this.myDrivers = this.myDrivers.filter(d => d.id !== this.driverToFire.id);
+        this.cancelFire(); 
 
       } catch (e) { 
-        console.error(e);
         alert("⚠️ Error: " + e.message); 
       } finally {
         if (btn) { btn.innerText = "Sí, Desvincular"; btn.disabled = false; }
       }
     },
 
-    // Helpers
+    // Helper normalización
     normalize(data) {
       return data.map(d => ({
         id: d.id || d.Id || 0,
@@ -301,25 +306,21 @@ export default {
         phone: d.phoneNumber || d.phone || "",
         description: d.description || d.email || "Conductor"
       }));
-    },
-    hideSuggestionsDelay() { setTimeout(() => { this.showSuggestions = false; }, 200); }
+    }
   }
 };
 </script>
 
 <style scoped>
-/* ============= ESTRUCTURA MAESTRA (IGUAL A ASSIGN ROUTES) ============= */
+/* ============= ESTRUCTURA MAESTRA ============= */
 .drivers-page {
   width: 100%;
   height: 100vh;
   overflow: hidden;
-  
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  
-  /* Ajuste visual vertical */
   padding-bottom: 5vh; 
   padding-left: 20px;
   padding-right: 20px;
@@ -327,7 +328,6 @@ export default {
   background: transparent;
 }
 
-/* Header */
 .page-header {
   flex-shrink: 0;
   margin-bottom: 20px;
@@ -336,17 +336,14 @@ export default {
 .page-title { margin: 0; font-size: 1.8rem; color: #d4af37; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
 .subtitle { margin: 5px 0 0; font-size: 0.9rem; color: #888; }
 
-/* ============= PANEL PRINCIPAL (TAMAÑO AUMENTADO) ============= */
 .main-panel {
   width: 100%;
   max-width: 1150px; 
   height: auto;
   max-height: 85vh;
   min-height: 600px;
-  
   display: flex;
   flex-direction: column;
-  
   background: rgba(15, 12, 8, 0.96);
   border: 1px solid rgba(212, 175, 55, 0.25);
   border-radius: 16px;
@@ -355,7 +352,7 @@ export default {
   overflow: hidden;
 }
 
-/* ============= SECCIÓN BUSCADOR (FIJA ARRIBA) ============= */
+/* ============= SECCIÓN BUSCADOR (NUEVO DISEÑO) ============= */
 .search-section {
   flex-shrink: 0;
   padding: 25px 30px;
@@ -364,51 +361,81 @@ export default {
   z-index: 20;
 }
 
-.search-wrapper { position: relative; display: flex; align-items: center; }
+.input-group {
+  display: flex;
+  gap: 15px;
+  align-items: stretch;
+  width: 100%;
+}
+
+.input-wrapper {
+  position: relative;
+  flex: 1;
+}
 
 .main-search-input {
   width: 100%;
-  padding: 14px 14px 14px 45px;
+  height: 100%;
+  padding: 12px 14px 12px 45px;
   background: #080808;
   border: 1px solid #333;
   border-radius: 8px;
   color: #fff;
   font-size: 1rem;
+  box-sizing: border-box;
   transition: all 0.3s;
 }
 .main-search-input:focus {
   outline: none;
   border-color: #d4af37;
-  box-shadow: 0 0 20px rgba(212, 175, 55, 0.15);
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.15);
 }
 
-.search-icon { position: absolute; left: 15px; font-size: 1.1rem; opacity: 0.6; pointer-events: none; }
+.search-icon { 
+  position: absolute; left: 15px; top: 50%; transform: translateY(-50%); 
+  font-size: 1.1rem; opacity: 0.6; pointer-events: none; 
+}
 
-/* SUGERENCIAS DROPDOWN */
-.suggestions-dropdown {
-  position: absolute; top: 100%; left: 0; right: 0;
-  background: #111; border: 1px solid #d4af37; border-radius: 0 0 8px 8px;
-  margin-top: 5px; max-height: 220px; overflow-y: auto;
-  box-shadow: 0 15px 40px rgba(0,0,0,0.95);
+/* BOTÓN DE ACCIÓN LATERAL */
+.btn-action-hire {
+  padding: 0 25px;
+  background: linear-gradient(90deg, #d4af37, #b8860b);
+  border: none;
+  border-radius: 8px;
+  color: #000;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 12px rgba(212,175,55,0.25);
+  white-space: nowrap;
 }
-.suggestion-header { padding: 8px 15px; font-size: 0.75rem; color: #888; background: #050505; }
-.suggestion-item {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 12px 20px; border-bottom: 1px solid #222; transition: background 0.2s;
+.btn-action-hire:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(212,175,55,0.4);
 }
-.suggestion-item:hover { background: rgba(212, 175, 55, 0.15); }
-.suggestion-info { display: flex; align-items: center; gap: 12px; }
-.mini-icon { font-size: 1.4rem; }
-.sug-name { margin: 0; font-size: 0.95rem; font-weight: bold; color: #fff; }
-.sug-phone { margin: 0; font-size: 0.85rem; color: #d4af37; }
-.btn-quick-hire {
-  background: #d4af37; border: none; padding: 6px 14px; border-radius: 6px; 
-  font-weight: bold; font-size: 0.8rem; cursor: pointer; color: #000;
+.btn-action-hire:active {
+  transform: translateY(0);
 }
-.btn-quick-hire:hover { background: #ffdb60; }
-.no-results {
-  position: absolute; top: 100%; left: 0; background: #222; color: #aaa;
-  padding: 10px; font-size: 0.9rem; border-radius: 6px; margin-top: 8px; border: 1px solid #444;
+
+/* MENSAJE DE ADVERTENCIA / ERROR */
+.message-box {
+  margin-top: 15px;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  text-align: center;
+  font-weight: 500;
+}
+.message-box.error {
+  background: rgba(220, 50, 50, 0.15);
+  border: 1px solid rgba(220, 50, 50, 0.4);
+  color: #ff8888;
+}
+.message-box.info {
+  background: rgba(50, 100, 220, 0.15);
+  border: 1px solid rgba(50, 100, 220, 0.4);
+  color: #88ccff;
 }
 
 /* ============= LISTA Y SCROLL ============= */
@@ -495,7 +522,7 @@ export default {
 }
 .modal-icon { font-size: 2.5rem; margin-bottom: 15px; }
 .modal-title { margin: 0 0 10px; color: #d4af37; font-size: 1.4rem; }
-.modal-warning-text { color: #888; font-size: 0.85rem; margin: 10px 0 0 0; }
+.modal-details-confirm { background: #222; border-radius: 6px; padding: 10px; margin: 15px 0; color: #d4af37; font-weight: bold; }
 
 .modal-actions { margin-top: 25px; display: flex; gap: 15px; justify-content: center; }
 .btn-cancel { background: transparent; border: 1px solid #666; color: #ccc; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
