@@ -3,8 +3,8 @@
 
     <!-- HEADER -->
     <header class="page-header">
-      <h1 class="page-title">Gestión de Pedidos</h1>
-      <p class="subtitle">Historial de Mis Solicitudes</p>
+      <h1 class="page-title">Creación de Ruta</h1>
+      <p class="subtitle">Agrega los pedidos que conformarán la nueva ruta</p>
     </header>
 
     <!-- PANEL PRINCIPAL -->
@@ -12,24 +12,32 @@
 
       <div class="split-content">
 
-        <!-- IZQUIERDA: TABLA (75%) -->
+        <!-- IZQUIERDA: LISTA DE LA RUTA ACTUAL (75%) -->
         <div class="table-section">
+          
           <div class="section-header">
-            <h2 class="panel-subtitle">📦 Mis Pedidos</h2>
-            <span class="badge">{{ orders.length }} registros</span>
+            <div class="header-left">
+              <h2 class="panel-subtitle">📦 Pedidos en Cola</h2>
+              <span class="badge">{{ orders.length }} paradas</span>
+            </div>
+            
+            <!-- BOTÓN DE OPTIMIZAR -->
+            <button 
+              class="btn-optimize" 
+              @click="generateRoute"
+              :disabled="orders.length < 2"
+              :title="orders.length < 2 ? 'Necesitas al menos 2 pedidos' : 'Crear ruta'"
+            >
+              ⚡ Generar Ruta Optimizada
+            </button>
           </div>
 
           <div class="table-scroll-area">
 
-            <!-- LOADING STATE -->
-            <div v-if="isLoadingList" class="state-msg">
-              <div class="spinner"></div> Cargando mis pedidos...
-            </div>
-
-            <table v-else class="custom-table">
+            <table class="custom-table">
               <thead>
                 <tr>
-                  <th class="col-id">ID</th>
+                  <th class="col-id">#</th>
                   <th>Dirección</th>
                   <th>Descripción</th>
                   <th class="col-actions">Acciones</th>
@@ -38,11 +46,16 @@
               <tbody>
                 <tr v-if="orders.length === 0">
                   <td colspan="4" class="empty-cell">
-                    No tienes pedidos registrados.
+                    <div class="empty-content">
+                      <span class="empty-icon">📍</span>
+                      <p>La lista de ruta está vacía.</p>
+                      <small>Usa el formulario para agregar paradas.</small>
+                    </div>
                   </td>
                 </tr>
-                <tr v-for="order in orders" :key="order.id">
-                  <td class="col-id">#{{ order.id }}</td>
+                <!-- Iteramos sobre la lista LOCAL 'orders' -->
+                <tr v-for="(order, index) in orders" :key="order.id" class="fade-in-row">
+                  <td class="col-id">{{ index + 1 }}</td>
                   <td>{{ order.address }}</td>
                   <td class="desc-cell">
                     <span v-if="order.requirePhoto" title="Requiere Foto" class="photo-badge">📸</span>
@@ -50,11 +63,11 @@
                   </td>
                   <td class="col-actions">
                     <div class="action-buttons">
-                      <button class="btn-icon view" @click="openInfoModal(order)" title="Ver Mapa">
+                      <button class="btn-icon view" @click="openInfoModal(order)" title="Ver Ubicación">
                         👁️
                       </button>
-                      <button class="btn-icon delete" @click="deleteOrder(order.id)" title="Eliminar Pedido">
-                        🗑️
+                      <button class="btn-icon delete" @click="deleteOrder(order.id)" title="Quitar de la ruta">
+                        ✕
                       </button>
                     </div>
                   </td>
@@ -64,9 +77,9 @@
           </div>
         </div>
 
-        <!-- DERECHA: FORMULARIO -->
+        <!-- DERECHA: FORMULARIO DE AGREGAR -->
         <div class="form-section">
-          <h3 class="form-title">Nuevo Pedido</h3>
+          <h3 class="form-title">Agregar Parada</h3>
 
           <form @submit.prevent="addOrder" class="order-form">
 
@@ -79,7 +92,7 @@
               </button>
 
               <div class="input-wrapper">
-                <input type="text" v-model="searchQuery" class="input-field" placeholder="Escribe para buscar..."
+                <input type="text" v-model="searchQuery" class="input-field" placeholder="Buscar dirección..."
                   @input="onSearchInput" required>
                 <div v-if="isSearching" class="input-loader"></div>
 
@@ -98,17 +111,17 @@
 
             <div class="form-group">
               <label>Descripción *</label>
-              <textarea v-model="form.description" class="input-field textarea" rows="3"
-                placeholder="Detalles del paquete..." required></textarea>
+              <textarea v-model="form.description" class="input-field textarea" rows="2"
+                placeholder="Ej: Caja pequeña, dejar en portería..." required></textarea>
             </div>
 
             <div class="form-row">
               <div class="form-group">
-                <label>Latitud <small>(Auto)</small></label>
+                <label>Latitud</label>
                 <input type="text" v-model="form.lat" class="input-field readonly" readonly placeholder="0.00">
               </div>
               <div class="form-group">
-                <label>Longitud <small>(Auto)</small></label>
+                <label>Longitud</label>
                 <input type="text" v-model="form.lng" class="input-field readonly" readonly placeholder="0.00">
               </div>
             </div>
@@ -118,13 +131,13 @@
               <label class="switch-container">
                 <input type="checkbox" v-model="form.requirePhoto">
                 <span class="slider"></span>
-                <span class="switch-text">¿Requiere evidencia fotográfica?</span>
+                <span class="switch-text">Requiere foto</span>
               </label>
             </div>
 
             <button type="submit" class="btn-submit" :disabled="isSubmitting">
               <span v-if="isSubmitting" class="spinner-mini"></span>
-              {{ isSubmitting ? 'Guardando...' : 'Guardar Pedido' }}
+              {{ isSubmitting ? 'Agregando...' : 'Agregar a Ruta' }}
             </button>
 
           </form>
@@ -135,13 +148,14 @@
 
     <!-- MODALES -->
     <teleport to="body">
-      <!-- INFO MODAL -->
+      
+      <!-- 1. INFO MODAL -->
       <transition name="fade">
         <div v-if="showInfoModal" class="modal-overlay" @click.self="closeInfoModal">
           <div class="modal-container">
             <div class="modal-card" ref="infoModalCard">
               <header class="modal-header">
-                <h2 class="modal-title">Detalle del Pedido #{{ selectedOrder?.id }}</h2>
+                <h2 class="modal-title">Detalle de Parada</h2>
                 <button class="modal-close-x" @click="closeInfoModal">✕</button>
               </header>
               <div class="modal-body">
@@ -149,27 +163,19 @@
                   <div ref="infoMapContainer" class="map-container"></div>
                 </div>
                 <div class="order-info">
-                  <div class="info-row"><span class="label">📍 Dirección:</span><span class="value">{{
-                      selectedOrder?.address }}</span></div>
-                  <div class="info-row"><span class="label">📦 Descripción:</span><span class="value">{{
-                      selectedOrder?.description }}</span></div>
-                  <div class="info-row coords"><span class="label">🌐 Coordenadas:</span><span class="value">{{
-                      selectedOrder?.lat }}, {{ selectedOrder?.lng }}</span></div>
-                  <div class="info-row" v-if="selectedOrder?.requirePhoto">
-                    <span class="label">📸 Evidencia:</span>
-                    <span class="value highlight-gold">Requiere fotografía</span>
-                  </div>
+                  <div class="info-row"><span class="label">📍 Dirección:</span><span class="value">{{ selectedOrder?.address }}</span></div>
+                  <div class="info-row"><span class="label">📦 Nota:</span><span class="value">{{ selectedOrder?.description }}</span></div>
                 </div>
               </div>
               <footer class="modal-footer">
-                <button class="btn-close-modal" @click="closeInfoModal">Cerrar Ventana</button>
+                <button class="btn-close-modal" @click="closeInfoModal">Cerrar</button>
               </footer>
             </div>
           </div>
         </div>
       </transition>
 
-      <!-- PICKER MODAL -->
+      <!-- 2. PICKER MODAL -->
       <transition name="fade">
         <div v-if="showPickerModal" class="modal-overlay" @click.self="closePickerModal">
           <div class="modal-container">
@@ -181,24 +187,38 @@
               <div class="modal-body">
                 <div class="map-wrapper large-map">
                   <div ref="pickerMapContainer" class="map-container"></div>
-                  <div class="map-tooltip">📍 Haz clic en el mapa para ubicar el punto</div>
+                  <div class="map-tooltip">📍 Haz clic en el mapa</div>
                 </div>
                 <div class="picker-info">
-                  <p class="picker-label">Ubicación seleccionada:</p>
-                  <p class="picker-address">{{ pickerTemp.address || 'Haz clic en el mapa...' }}</p>
-                  <p class="picker-coords" v-if="pickerTemp.lat">Lat: {{ pickerTemp.lat.toFixed(5) }} | Lng: {{
-                    pickerTemp.lng.toFixed(5) }}</p>
+                  <p class="picker-address">{{ pickerTemp.address || 'Selecciona un punto...' }}</p>
                 </div>
               </div>
               <footer class="modal-footer">
                 <button class="btn-cancel-modal" @click="closePickerModal">Cancelar</button>
-                <button class="btn-confirm-modal" @click="confirmPickerSelection" :disabled="!pickerTemp.lat">Usar esta
-                  ubicación</button>
+                <button class="btn-confirm-modal" @click="confirmPickerSelection" :disabled="!pickerTemp.lat">Confirmar Ubicación</button>
               </footer>
             </div>
           </div>
         </div>
       </transition>
+
+      <!-- 3. RUTA GENERADA MODAL -->
+      <transition name="fade">
+        <div v-if="showRouteModal" class="modal-overlay" @click.self="showRouteModal = false">
+          <div class="modal-container">
+            <div class="modal-card small-modal text-center">
+              <div class="modal-body success-body">
+                <div class="success-icon">🚀</div>
+                <h2 class="modal-title success-title">¡Ruta Generada!</h2>
+                <p class="success-text">Hemos optimizado la ruta con tus pedidos.</p>
+                <p class="success-subtext">Puedes verla en la sección de <strong>Rutas</strong>.</p>
+                <button class="btn-confirm-modal full-width" @click="showRouteModal = false">Entendido</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+
     </teleport>
 
   </div>
@@ -210,14 +230,14 @@ import { markRaw, nextTick } from "vue";
 import "mapbox-gl/dist/mapbox-gl.css";
 
 export default {
-  name: "OrdersPage",
+  name: "CreateOrders",
   data() {
     return {
       baseUrl: 'https://service.lujuria.crudzaso.com',
       mapboxAccessToken: "pk.eyJ1IjoianZlbGV6MDAwIiwiYSI6ImNtaWkzOHZ5dTAxbnkzZHE3Mmo2c2VnbjQifQ.R-ikqyiMMZVwUHOH9CJ6mg",
 
-      orders: [],
-      isLoadingList: false,
+      orders: [], 
+      
       isSubmitting: false,
 
       form: {
@@ -232,6 +252,7 @@ export default {
       isSearching: false,
       searchTimeout: null,
 
+      // Modales
       showInfoModal: false,
       selectedOrder: null,
       infoMapInstance: null,
@@ -240,77 +261,44 @@ export default {
       pickerMapInstance: null,
       pickerMarker: null,
       pickerTemp: { address: "", lat: null, lng: null },
+
+      showRouteModal: false,
     };
   },
   mounted() {
-    this.fetchOrders();
+    // No cargamos datos al inicio
   },
   methods: {
-    // --- 1. OBTENER PEDIDOS (Directo del API, ya filtrado por Backend) ---
-    async fetchOrders() {
-      this.isLoadingList = true;
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-
-        // Llamada al API (El backend ahora solo devuelve MIS pedidos)
-        const res = await fetch(`${this.baseUrl}/api/Orders`, {
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          // Mapear datos para la vista
-          this.orders = data.map(o => ({
-            id: o.id,
-            address: o.address,
-            description: o.description,
-            lat: o.latitude,
-            lng: o.longitude,
-            requirePhoto: o.requiresEvidence
-          })).reverse(); // Ordenar del más reciente al más antiguo
-        } else {
-          console.error("Error API:", res.status);
-        }
-      } catch (err) {
-        console.error("Error de red cargando pedidos:", err);
-      } finally {
-        this.isLoadingList = false;
-      }
-    },
-
-    // --- 2. CREAR PEDIDO ---
+    
+    // --- 1. AGREGAR A LA RUTA (CORREGIDO) ---
     async addOrder() {
-      // Validaciones y lógica de preparación
+      // 1. Validaciones
       if (!this.form.address && this.searchQuery) {
         this.form.address = this.searchQuery;
       }
-
       if (!this.form.address || !this.form.description) {
-        return alert("⚠️ Dirección y descripción son obligatorias.");
+        return alert("⚠️ Faltan datos obligatorios.");
       }
 
       this.isSubmitting = true;
 
-      // Sanitización de datos para evitar errores 500
+      // 2. Preparar Payload (Lo guardamos en variable para reutilizarlo en la vista)
       const latFixed = parseFloat(Number(this.form.lat).toFixed(6)) || 0;
       const lngFixed = parseFloat(Number(this.form.lng).toFixed(6)) || 0;
-      const safeAddress = this.form.address.substring(0, 200).trim();
-      const safeDescription = this.form.description.substring(0, 500).trim();
-
+      
       const payload = {
-        description: safeDescription,
+        description: this.form.description.substring(0, 500).trim(),
         latitude: latFixed,
         longitude: lngFixed,
-        address: safeAddress,
+        address: this.form.address.substring(0, 200).trim(),
         requiresEvidence: !!this.form.requirePhoto
       };
 
       try {
         const token = localStorage.getItem('token');
-        if (!token) throw new Error("Sesión no válida");
+        if (!token) throw new Error("Sesión expirada");
 
+        // 3. Guardar en BD para obtener ID
         const res = await fetch(`${this.baseUrl}/api/Orders`, {
           method: 'POST',
           headers: {
@@ -321,19 +309,33 @@ export default {
         });
 
         if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(errorText || `Error ${res.status}`);
+          const txt = await res.text();
+          throw new Error(txt || `Error ${res.status}`);
         }
 
-        // Recargamos la lista desde el servidor para ver el nuevo pedido
-        await this.fetchOrders();
+        // 4. Obtener respuesta para sacar el ID
+        const responseData = await res.json();
 
-        // Limpiamos formulario
+        // 5. AGREGAR A LISTA LOCAL (USANDO DATOS DEL FORMULARIO + ID DE BD)
+        // Esto garantiza que se muestre exactamente lo que escribió el usuario
+        const mappedOrder = {
+          id: responseData.id || Date.now(), // ID real de la BD
+          address: payload.address,          // Usamos el payload que acabamos de enviar
+          description: payload.description,
+          lat: payload.latitude,
+          lng: payload.longitude,
+          requirePhoto: payload.requiresEvidence
+        };
+
+        // Lo agregamos a la vista
+        this.orders.unshift(mappedOrder);
+
+        // 6. Limpiar form
         this.resetForm();
 
       } catch (error) {
-        console.error("Error guardando pedido:", error);
-        alert("⚠️ Error al guardar: " + error.message);
+        console.error(error);
+        alert("⚠️ No se pudo agregar: " + error.message);
       } finally {
         this.isSubmitting = false;
       }
@@ -344,10 +346,17 @@ export default {
       this.searchQuery = "";
     },
 
-    // --- 3. ELIMINAR PEDIDO ---
-    async deleteOrder(id) {
-      if (!confirm("¿Estás seguro de eliminar este pedido?")) return;
+    // --- 2. GENERAR RUTA OPTIMIZADA ---
+    async generateRoute() {
+      // AQUÍ IRÁ EL CONSUMO DEL ENDPOINT DE OPTIMIZACIÓN
+      console.log("Generando ruta con IDs:", this.orders.map(o => o.id));
+      
+      this.orders = []; // Limpia la lista visual
+      this.showRouteModal = true; // Muestra éxito
+    },
 
+    // --- 3. QUITAR DE LA LISTA (Y BORRAR DE BD) ---
+    async deleteOrder(id) {
       try {
         const token = localStorage.getItem('token');
         const res = await fetch(`${this.baseUrl}/api/Orders/${id}`, {
@@ -356,36 +365,32 @@ export default {
         });
 
         if (res.ok) {
+          // Remover solo de la lista local
           this.orders = this.orders.filter(o => o.id !== id);
         } else {
-          alert("No se pudo eliminar el pedido.");
+          alert("Error al eliminar el pedido.");
         }
       } catch (error) {
         console.error(error);
       }
     },
 
-    // --- AUTOCOMPLETADO (MAPBOX) ---
+    // --- UTILS MAPBOX ---
     onSearchInput() {
-      if (!this.searchQuery) {
-        this.form.address = ""; this.form.lat = 0; this.form.lng = 0;
-      }
+      if (!this.searchQuery) { this.form.address = ""; this.form.lat = 0; this.form.lng = 0; }
       clearTimeout(this.searchTimeout);
       if (this.searchQuery.length < 3) { this.suggestions = []; return; }
-
       this.isSearching = true;
       this.searchTimeout = setTimeout(() => { this.fetchSuggestions(); }, 350);
     },
-
     async fetchSuggestions() {
       const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(this.searchQuery)}.json?access_token=${this.mapboxAccessToken}&country=co&proximity=-75.56,6.25&types=address,poi&limit=5`;
       try {
         const res = await fetch(url);
         const data = await res.json();
         this.suggestions = data.features || [];
-      } catch (e) { console.error(e); } finally { this.isSearching = false; }
+      } catch (e) { } finally { this.isSearching = false; }
     },
-
     selectSuggestion(item) {
       this.searchQuery = item.place_name.split(',')[0];
       this.form.address = item.place_name;
@@ -393,13 +398,9 @@ export default {
       this.form.lat = item.center[1];
       this.suggestions = [];
     },
+    getShortAddress(full) { return full.split(',').slice(1).join(',').trim(); },
 
-    getShortAddress(fullAddress) {
-      const parts = fullAddress.split(',');
-      return parts.slice(1).join(',').trim();
-    },
-
-    // --- MODALES (MAPAS) ---
+    // Modales
     openInfoModal(order) {
       this.selectedOrder = order;
       this.showInfoModal = true;
@@ -410,7 +411,7 @@ export default {
       if (this.infoMapInstance) { this.infoMapInstance.remove(); this.infoMapInstance = null; }
     },
     initInfoMap(order) {
-      const hasCoords = order.lat && order.lng && (order.lat !== 0 || order.lng !== 0);
+      const hasCoords = order.lat && order.lng;
       const center = hasCoords ? [order.lng, order.lat] : [-75.5658, 6.2476];
       mapboxgl.accessToken = this.mapboxAccessToken;
       const map = new mapboxgl.Map({
@@ -425,7 +426,6 @@ export default {
         if (hasCoords) new mapboxgl.Marker({ color: "#d4af37" }).setLngLat(center).addTo(map);
       });
     },
-
     openPickerModal() {
       this.pickerTemp = { address: "", lat: null, lng: null };
       this.showPickerModal = true;
@@ -437,10 +437,7 @@ export default {
     },
     initPickerMap() {
       mapboxgl.accessToken = this.mapboxAccessToken;
-      const startCenter = (this.form.lat && this.form.lng && this.form.lat !== 0)
-        ? [this.form.lng, this.form.lat]
-        : [-75.5658, 6.2476];
-
+      const startCenter = (this.form.lat && this.form.lng) ? [this.form.lng, this.form.lat] : [-75.5658, 6.2476];
       const map = new mapboxgl.Map({
         container: this.$refs.pickerMapContainer,
         style: "mapbox://styles/mapbox/dark-v11",
@@ -448,14 +445,10 @@ export default {
         zoom: 13
       });
       this.pickerMapInstance = markRaw(map);
-
-      if (this.form.lat && this.form.lng && this.form.lat !== 0) {
+      if (this.form.lat && this.form.lng) {
         this.updatePickerMarker(this.form.lng, this.form.lat);
-        this.pickerTemp.lat = this.form.lat;
-        this.pickerTemp.lng = this.form.lng;
-        this.pickerTemp.address = this.form.address;
+        this.pickerTemp = { lat: this.form.lat, lng: this.form.lng, address: this.form.address };
       }
-
       map.on("load", () => map.resize());
       map.on("click", (e) => this.handleMapClick(e.lngLat));
     },
@@ -564,6 +557,12 @@ export default {
   flex-shrink: 0;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
 .panel-subtitle {
   margin: 0;
   color: #d4af37;
@@ -577,6 +576,33 @@ export default {
   border-radius: 12px;
   font-size: 0.85rem;
   font-weight: bold;
+}
+
+/* BOTÓN OPTIMIZAR */
+.btn-optimize {
+  background: linear-gradient(90deg, #d4af37, #b8860b);
+  border: none;
+  border-radius: 8px;
+  color: #000;
+  font-weight: 800;
+  padding: 8px 16px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.25);
+  transition: transform 0.2s, box-shadow 0.2s;
+  font-size: 0.9rem;
+}
+
+.btn-optimize:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(212, 175, 55, 0.4);
+}
+
+.btn-optimize:disabled {
+  background: #2a2515;
+  color: #666;
+  cursor: not-allowed;
+  box-shadow: none;
+  border: 1px solid rgba(212, 175, 55, 0.1);
 }
 
 .table-scroll-area {
@@ -613,15 +639,24 @@ export default {
   vertical-align: middle;
 }
 
+.fade-in-row {
+  animation: fadeInRow 0.3s ease forwards;
+}
+
+@keyframes fadeInRow {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 .custom-table tr:hover {
   background: rgba(255, 255, 255, 0.03);
 }
 
 .col-id {
-  width: 60px;
-  color: #d4af37;
+  width: 40px;
+  color: #666;
   font-family: monospace;
-  font-weight: bold;
+  text-align: center;
 }
 
 .desc-cell {
@@ -633,15 +668,26 @@ export default {
 }
 
 .col-actions {
-  width: 100px;
+  width: 90px;
   text-align: center;
 }
 
 .empty-cell {
   text-align: center;
-  padding: 30px;
+  padding: 50px;
   color: #666;
-  font-style: italic;
+}
+
+.empty-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.empty-icon {
+  font-size: 2rem;
+  opacity: 0.5;
 }
 
 .photo-badge {
@@ -720,10 +766,6 @@ label {
   font-size: 0.8rem;
   color: #aaa;
   margin-left: 2px;
-}
-
-label small {
-  color: #666;
 }
 
 .btn-open-map {
@@ -937,26 +979,7 @@ input:checked+.slider:before {
   animation: spin 1s linear infinite;
 }
 
-.spinner {
-  width: 30px;
-  height: 30px;
-  border: 3px solid #d4af37;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 15px;
-}
-
-.state-msg {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: #666;
-}
-
-/* MODALES */
+/* MODALES Y VARIOS */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -987,9 +1010,16 @@ input:checked+.slider:before {
   flex-direction: column;
 }
 
-.large-modal {
-  max-width: 800px;
-}
+.large-modal { max-width: 800px; }
+.small-modal { max-width: 380px; }
+
+.text-center { text-align: center; }
+.success-body { padding: 30px 20px; display: flex; flex-direction: column; align-items: center; }
+.success-icon { font-size: 3rem; margin-bottom: 15px; }
+.success-title { color: #d4af37; margin: 0 0 10px 0; }
+.success-text { font-size: 1.1rem; margin: 5px 0; }
+.success-subtext { font-size: 0.9rem; color: #888; margin-bottom: 25px; }
+.full-width { width: 100%; }
 
 .modal-header {
   padding: 15px 20px;
@@ -1000,204 +1030,51 @@ input:checked+.slider:before {
   background: #0f0c08;
 }
 
-.modal-title {
-  margin: 0;
-  color: #d4af37;
-  font-size: 1.2rem;
-}
+.modal-title { margin: 0; color: #d4af37; font-size: 1.2rem; }
+.modal-close-x { background: transparent; border: none; color: #888; font-size: 1.5rem; cursor: pointer; }
+.modal-close-x:hover { color: #fff; }
 
-.modal-close-x {
-  background: transparent;
-  border: none;
-  color: #888;
-  font-size: 1.5rem;
-  cursor: pointer;
-}
-
-.modal-close-x:hover {
-  color: #fff;
-}
-
-.modal-body {
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.map-wrapper {
-  width: 100%;
-  height: 300px;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
-  position: relative;
-}
-
-.large-map {
-  height: 400px;
-}
-
-.map-container {
-  width: 100%;
-  height: 100%;
-}
-
+.modal-body { padding: 0; display: flex; flex-direction: column; }
+.map-wrapper { width: 100%; height: 300px; border-bottom: 1px solid rgba(212, 175, 55, 0.2); position: relative; }
+.large-map { height: 400px; }
+.map-container { width: 100%; height: 100%; }
 .map-tooltip {
-  position: absolute;
-  top: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.8);
-  color: #d4af37;
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  border: 1px solid #d4af37;
-  pointer-events: none;
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8); color: #d4af37; padding: 5px 12px;
+  border-radius: 20px; font-size: 0.8rem; border: 1px solid #d4af37; pointer-events: none;
 }
 
-.order-info,
-.picker-info {
-  padding: 20px;
-  background: #1a1a1a;
-}
-
-.info-row {
-  margin-bottom: 10px;
-  display: flex;
-  gap: 10px;
-}
-
-.info-row .label {
-  color: #d4af37;
-  font-weight: 600;
-  min-width: 100px;
-}
-
-.info-row .value {
-  color: #ccc;
-}
-
-.highlight-gold {
-  color: #d4af37;
-  font-weight: bold;
-  border: 1px solid #d4af37;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-}
-
-.coords {
-  font-family: monospace;
-  font-size: 0.9rem;
-  color: #888;
-}
-
-.picker-label {
-  color: #888;
-  font-size: 0.85rem;
-  margin: 0 0 5px 0;
-}
-
-.picker-address {
-  color: #fff;
-  font-size: 1rem;
-  font-weight: bold;
-  margin: 0 0 5px 0;
-}
-
-.picker-coords {
-  color: #d4af37;
-  font-family: monospace;
-  font-size: 0.85rem;
-  margin: 0;
-}
+.order-info, .picker-info { padding: 20px; background: #1a1a1a; }
+.info-row { margin-bottom: 10px; display: flex; gap: 10px; }
+.info-row .label { color: #d4af37; font-weight: 600; min-width: 100px; }
+.info-row .value { color: #ccc; }
+.highlight-gold { color: #d4af37; font-weight: bold; border: 1px solid #d4af37; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
+.picker-address { color: #fff; font-size: 1rem; font-weight: bold; margin: 0 0 5px 0; }
 
 .modal-footer {
-  padding: 15px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  text-align: right;
-  background: #0f0c08;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  padding: 15px; border-top: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: right; background: #0f0c08; display: flex; justify-content: flex-end; gap: 10px;
 }
 
-.btn-close-modal,
-.btn-cancel-modal {
-  background: transparent;
-  border: 1px solid #d4af37;
-  color: #d4af37;
-  padding: 8px 24px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-transform: uppercase;
-  font-size: 0.85rem;
-  letter-spacing: 0.5px;
+.btn-close-modal, .btn-cancel-modal {
+  background: transparent; border: 1px solid #d4af37; color: #d4af37; padding: 8px 24px;
+  border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+  text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px;
 }
-
-.btn-close-modal:hover,
-.btn-cancel-modal:hover {
-  background: rgba(212, 175, 55, 0.15);
-  color: #fff;
-  border-color: #fff;
-}
+.btn-close-modal:hover, .btn-cancel-modal:hover { background: rgba(212, 175, 55, 0.15); color: #fff; border-color: #fff; }
 
 .btn-confirm-modal {
-  background: #d4af37;
-  border: none;
-  color: #000;
-  padding: 8px 24px;
-  border-radius: 6px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: 0.2s;
-  text-transform: uppercase;
-  font-size: 0.85rem;
-  letter-spacing: 0.5px;
+  background: #d4af37; border: none; color: #000; padding: 8px 24px; border-radius: 6px;
+  font-weight: 700; cursor: pointer; transition: 0.2s; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px;
 }
+.btn-confirm-modal:hover { background: #ffdb60; }
+.btn-confirm-modal:disabled { background: #554415; color: #888; cursor: not-allowed; }
 
-.btn-confirm-modal:hover {
-  background: #ffdb60;
-}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); }
+::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #d4af37; }
 
-.btn-confirm-modal:disabled {
-  background: #554415;
-  color: #888;
-  cursor: not-allowed;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
-}
-
-::-webkit-scrollbar-thumb {
-  background: #444;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #d4af37;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
