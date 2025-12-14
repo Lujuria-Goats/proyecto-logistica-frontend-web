@@ -44,13 +44,7 @@
           </div>
 
           <div class="table-scroll-area">
-
-            <!-- LOADING STATE -->
-            <div v-if="isLoadingList" class="state-msg">
-              <div class="spinner"></div> Sincronizando...
-            </div>
-
-            <table v-else class="custom-table">
+            <table class="custom-table">
               <thead>
                 <tr>
                   <th class="col-id">#</th>
@@ -69,7 +63,6 @@
                     </div>
                   </td>
                 </tr>
-                <!-- Iteramos sobre la lista LOCAL 'orders' -->
                 <tr v-for="(order, index) in orders" :key="order.id" class="fade-in-row">
                   <td class="col-id">{{ index + 1 }}</td>
                   <td>{{ order.address }}</td>
@@ -102,11 +95,7 @@
             <!-- INPUT DIRECCIÓN -->
             <div class="form-group search-group">
               <label>Dirección de Entrega *</label>
-
-              <button type="button" class="btn-open-map" @click="openPickerModal">
-                🗺️ Seleccionar en Mapa
-              </button>
-
+              
               <div class="input-wrapper">
                 <input type="text" v-model="searchQuery" class="input-field" placeholder="Buscar dirección..."
                   @input="onSearchInput" required>
@@ -123,6 +112,14 @@
                   </li>
                 </ul>
               </div>
+            </div>
+
+            <!-- MAPA INTEGRADO (NUEVO) -->
+            <div class="form-group map-group">
+               <label>Ubicación (Click en el mapa para ajustar)</label>
+               <div class="inline-map-wrapper">
+                  <div ref="inlineMapContainer" class="map-container"></div>
+               </div>
             </div>
 
             <div class="form-group">
@@ -191,33 +188,6 @@
         </div>
       </transition>
 
-      <!-- 2. PICKER MODAL -->
-      <transition name="fade">
-        <div v-if="showPickerModal" class="modal-overlay" @click.self="closePickerModal">
-          <div class="modal-container">
-            <div class="modal-card large-modal">
-              <header class="modal-header">
-                <h2 class="modal-title">Seleccionar Ubicación</h2>
-                <button class="modal-close-x" @click="closePickerModal">✕</button>
-              </header>
-              <div class="modal-body">
-                <div class="map-wrapper large-map">
-                  <div ref="pickerMapContainer" class="map-container"></div>
-                  <div class="map-tooltip">📍 Haz clic en el mapa</div>
-                </div>
-                <div class="picker-info">
-                  <p class="picker-address">{{ pickerTemp.address || 'Selecciona un punto...' }}</p>
-                </div>
-              </div>
-              <footer class="modal-footer">
-                <button class="btn-cancel-modal" @click="closePickerModal">Cancelar</button>
-                <button class="btn-confirm-modal" @click="confirmPickerSelection" :disabled="!pickerTemp.lat">Confirmar Ubicación</button>
-              </footer>
-            </div>
-          </div>
-        </div>
-      </transition>
-
       <!-- 3. RUTA GENERADA MODAL -->
       <transition name="fade">
         <div v-if="showRouteModal" class="modal-overlay" @click.self="showRouteModal = false">
@@ -226,7 +196,7 @@
               <div class="modal-body success-body">
                 <div class="success-icon">🚀</div>
                 <h2 class="modal-title success-title">¡Ruta Generada!</h2>
-                <p class="text-white success-text">Hemos optimizado y guardado la ruta.</p>
+                <p class="success-text">Hemos optimizado y guardado la ruta.</p>
                 <p class="success-subtext">Nombre: <strong>{{ routeName }}</strong></p>
                 <p class="success-subtext">Distancia Total: <strong>{{ routeDistance.toFixed(2) }} km</strong></p>
                 <button class="btn-confirm-modal full-width" @click="showRouteModal = false">Entendido</button>
@@ -272,19 +242,21 @@ export default {
       isSearching: false,
       searchTimeout: null,
 
+      // Mapa Integrado
+      inlineMapInstance: null,
+      inlineMarker: null,
+
       // Modales
       showInfoModal: false,
       selectedOrder: null,
       infoMapInstance: null,
-
-      showPickerModal: false,
-      pickerMapInstance: null,
-      pickerMarker: null,
-      pickerTemp: { address: "", lat: null, lng: null },
-
       showRouteModal: false,
       routeDistance: 0
     };
+  },
+  mounted() {
+    // Inicializar el mapa del formulario al cargar
+    this.initInlineMap();
   },
   methods: {
     // --- 🔑 UTILS TOKEN ---
@@ -296,12 +268,8 @@ export default {
         if (typeof parsed === 'object' && parsed.token) token = parsed.token;
         else if (typeof parsed === 'string') token = parsed;
       } catch (e) {}
-      // Eliminar comillas extras si existen
       token = String(token).replace(/^"|"$/g, '');
-      // Eliminar "Bearer " si ya existe para no duplicarlo
-      if (token.toLowerCase().startsWith('bearer ')) {
-        token = token.slice(7).trim();
-      }
+      if (token.toLowerCase().startsWith('bearer ')) token = token.slice(7).trim();
       return token;
     },
 
@@ -313,11 +281,72 @@ export default {
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
         const payload = JSON.parse(jsonPayload);
-        // Retornamos el ID o un valor por defecto
-        return payload.nameid || payload.companyId || "default";
+        return payload.nameid || payload.companyId || "default-fleet";
       } catch (error) { 
-        return "default"; 
+        return "default-fleet"; 
       }
+    },
+
+    // --- MAPA INTEGRADO (INLINE) ---
+    initInlineMap() {
+      mapboxgl.accessToken = this.mapboxAccessToken;
+      const startCenter = [-75.5658, 6.2476]; // Medellín por defecto
+
+      const map = new mapboxgl.Map({
+        container: this.$refs.inlineMapContainer,
+        style: "mapbox://styles/mapbox/dark-v11",
+        center: startCenter,
+        zoom: 12
+      });
+
+      this.inlineMapInstance = markRaw(map);
+      
+      map.on("load", () => {
+        map.resize();
+        // Click en el mapa actualiza el formulario
+        map.on("click", (e) => this.handleInlineMapClick(e.lngLat));
+      });
+    },
+
+    async handleInlineMapClick(lngLat) {
+      const { lng, lat } = lngLat;
+      
+      // Actualizar Formulario
+      this.form.lat = lat;
+      this.form.lng = lng;
+      this.searchQuery = "Cargando ubicación...";
+      
+      // Mover Marcador
+      this.updateInlineMarker(lng, lat);
+
+      // Geocodificación Inversa
+      try {
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${this.mapboxAccessToken}&types=address,poi`;
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        if (data.features?.length > 0) {
+          const placeName = data.features[0].place_name;
+          this.form.address = placeName;
+          this.searchQuery = placeName.split(',')[0]; // Mostrar nombre corto en input
+        } else {
+          this.form.address = "Ubicación seleccionada en mapa";
+          this.searchQuery = "Ubicación manual";
+        }
+      } catch (e) { 
+        this.form.address = "Ubicación manual";
+        this.searchQuery = "Ubicación manual";
+      }
+    },
+
+    updateInlineMarker(lng, lat) {
+      if (this.inlineMarker) this.inlineMarker.remove();
+      this.inlineMarker = new mapboxgl.Marker({ color: "#d4af37", draggable: false })
+        .setLngLat([lng, lat])
+        .addTo(this.inlineMapInstance);
+        
+      // Centrar mapa suavemente
+      this.inlineMapInstance.flyTo({ center: [lng, lat], zoom: 14 });
     },
 
     // --- 1. AGREGAR A LA RUTA ---
@@ -342,7 +371,7 @@ export default {
         const token = this.getCleanToken();
         if (!token) throw new Error("Sesión expirada");
 
-        // 1. Guardar en BD para obtener ID real
+        // Guardar en BD para obtener ID real
         const res = await fetch(`${this.baseUrl}/api/Orders`, {
           method: 'POST',
           headers: {
@@ -358,16 +387,13 @@ export default {
         }
 
         const responseData = await res.json();
-        
-        // Obtenemos el ID de forma flexible (id, orderId, Id)
         const realId = responseData.orderId || responseData.id || responseData.Id;
         
         if (!realId) {
-          console.error("Respuesta del servidor:", responseData);
           throw new Error("El pedido se creó pero no se recibió un ID válido.");
         }
 
-        // 2. Agregar a lista local VISUAL
+        // Agregar a lista local VISUAL
         const mappedOrder = {
           id: realId, 
           address: payload.address,
@@ -391,9 +417,12 @@ export default {
     resetForm() {
       this.form = { address: "", description: "", lat: 0, lng: 0, requirePhoto: false };
       this.searchQuery = "";
+      // Limpiar mapa
+      if (this.inlineMarker) this.inlineMarker.remove();
+      if (this.inlineMapInstance) this.inlineMapInstance.flyTo({ center: [-75.5658, 6.2476], zoom: 12 });
     },
 
-    // --- 2. GENERAR RUTA (OPTIMIZAR + GUARDAR) ---
+    // --- 2. GENERAR RUTA ---
     async generateRoute() {
       if (!this.routeName || !this.routeName.trim()) return alert("⚠️ Por favor, ingresa un nombre para la ruta.");
       if (this.orders.length < 2) return alert("Agrega al menos 2 pedidos para crear una ruta.");
@@ -402,14 +431,11 @@ export default {
       const token = this.getCleanToken();
       const fleetId = String(this.getUserIdFromToken(token));
 
-      // --- PASO 1: MAPEO SEGURO (String Keys) ---
       const tempMap = new Map();
 
       const locationsPayload = this.orders.map((order, index) => {
         const simpleId = index + 1; 
-        // GUARDAR CON CLAVE STRING para asegurar coincidencia
         tempMap.set(String(simpleId), order); 
-
         return {
           id: simpleId, 
           latitude: Number(parseFloat(order.lat).toFixed(6)),
@@ -420,7 +446,7 @@ export default {
       console.log("🚀 Payload a Java:", { fleetId, locations: locationsPayload });
 
       try {
-        // --- PASO 2: LLAMADA AL OPTIMIZADOR (JAVA) ---
+        // Optimizar (Java)
         const resOptimize = await fetch(`${this.baseUrl}/api/Optimizer/optimize`, {
           method: 'POST',
           headers: {
@@ -437,59 +463,45 @@ export default {
         }
 
         const optimizedData = await resOptimize.json();
-        console.log("📩 Respuesta Java:", optimizedData);
-        
         this.routeDistance = optimizedData.totalDistanceKm || 0;
 
-        // --- PASO 3: RECUPERAR LOS IDS REALES ORDENADOS ---
+        // Recuperar IDs reales
         const sortedList = optimizedData.optimizedOrder || [];
         sortedList.sort((a, b) => a.sequenceNumber - b.sequenceNumber);
         
-        // CORRECCIÓN CLAVE: Recuperar usando String Key
         const orderedRealIds = sortedList.map(item => {
-           const key = String(item.id); 
-           const original = tempMap.get(key);
+           const original = tempMap.get(String(item.id));
            return original ? original.id : null;
         }).filter(id => id !== null); 
 
         console.log("✅ IDs Reales para guardar:", orderedRealIds);
 
-        // Validación crítica: Si no hay IDs, abortar
-        if (orderedRealIds.length === 0) {
-            throw new Error("Error interno: No se pudieron recuperar los IDs de los pedidos. La lista a guardar está vacía.");
-        }
+        if (orderedRealIds.length === 0) throw new Error("Error interno al recuperar IDs.");
 
-        // --- PASO 4: GUARDAR LA RUTA EN BASE DE DATOS (.NET) ---
+        // Guardar Ruta (.NET)
         const savePayload = {
           routeName: this.routeName.trim(),
           orderIds: orderedRealIds
         };
-        console.log("💾 Guardando en .NET:", savePayload);
 
         const resSave = await fetch(`${this.baseUrl}/api/Routes/save`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Accept': 'application/json', // Cabecera importante
+            'Accept': 'application/json',
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify(savePayload)
         });
 
         if (!resSave.ok) {
-           if (resSave.status === 401) {
-             throw new Error("⛔ 401 NO AUTORIZADO: El servidor rechazó tu credencial al guardar. Puede ser que el backend no reconozca tu rol o compañía.");
-           }
-           if (resSave.status === 403) {
-             throw new Error("⛔ 403 PROHIBIDO: No tienes permiso para guardar rutas (Falta CompanyId o Rol incorrecto).");
-           }
+           if (resSave.status === 401) throw new Error("⛔ 401 NO AUTORIZADO.");
            const txt = await resSave.text();
            throw new Error("Error guardando ruta: " + txt);
         }
 
-        // ÉXITO FINAL
-        this.orders = []; // Limpiar lista
-        this.routeName = ""; // Limpiar nombre
+        this.orders = []; 
+        this.routeName = ""; 
         this.showRouteModal = true;
 
       } catch (error) {
@@ -513,7 +525,7 @@ export default {
       this.orders = this.orders.filter(o => o.id !== id);
     },
 
-    // --- UTILS MAPBOX ---
+    // --- UTILS MAPBOX (Autocomplete) ---
     onSearchInput() {
       if (!this.searchQuery) { this.form.address = ""; this.form.lat = 0; this.form.lng = 0; }
       clearTimeout(this.searchTimeout);
@@ -535,6 +547,8 @@ export default {
       this.form.lng = item.center[0];
       this.form.lat = item.center[1];
       this.suggestions = [];
+      // Sincronizar con el mapa inline
+      this.updateInlineMarker(this.form.lng, this.form.lat);
     },
     getShortAddress(full) { return full.split(',').slice(1).join(',').trim(); },
 
@@ -561,64 +575,14 @@ export default {
       this.infoMapInstance = markRaw(map);
       new mapboxgl.Marker({ color: "#d4af37" }).setLngLat(center).addTo(map);
     },
-    openPickerModal() {
-      this.pickerTemp = { address: "", lat: null, lng: null };
-      this.showPickerModal = true;
-      nextTick(() => { this.initPickerMap(); });
-    },
-    closePickerModal() {
-      this.showPickerModal = false;
-      if (this.pickerMapInstance) { this.pickerMapInstance.remove(); this.pickerMapInstance = null; }
-    },
-    initPickerMap() {
-      mapboxgl.accessToken = this.mapboxAccessToken;
-      const startCenter = (this.form.lat && this.form.lng) ? [this.form.lng, this.form.lat] : [-75.5658, 6.2476];
-      const map = new mapboxgl.Map({
-        container: this.$refs.pickerMapContainer,
-        style: "mapbox://styles/mapbox/dark-v11",
-        center: startCenter,
-        zoom: 13
-      });
-      this.pickerMapInstance = markRaw(map);
-      if (this.form.lat && this.form.lng) {
-        this.updatePickerMarker(this.form.lng, this.form.lat);
-        this.pickerTemp = { lat: this.form.lat, lng: this.form.lng, address: this.form.address };
-      }
-      map.on("load", () => map.resize());
-      map.on("click", (e) => this.handleMapClick(e.lngLat));
-    },
-    async handleMapClick(lngLat) {
-      const { lng, lat } = lngLat;
-      this.updatePickerMarker(lng, lat);
-      this.pickerTemp.lat = lat;
-      this.pickerTemp.lng = lng;
-      this.pickerTemp.address = "Cargando...";
-      try {
-        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${this.mapboxAccessToken}&types=address,poi`;
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data.features?.length > 0) this.pickerTemp.address = data.features[0].place_name;
-        else this.pickerTemp.address = "Ubicación seleccionada";
-      } catch (e) { this.pickerTemp.address = "Ubicación manual"; }
-    },
-    updatePickerMarker(lng, lat) {
-      if (this.pickerMarker) this.pickerMarker.remove();
-      this.pickerMarker = new mapboxgl.Marker({ color: "#d4af37", draggable: false }).setLngLat([lng, lat]).addTo(this.pickerMapInstance);
-    },
-    confirmPickerSelection() {
-      if (!this.pickerTemp.lat) return;
-      this.form.lat = this.pickerTemp.lat;
-      this.form.lng = this.pickerTemp.lng;
-      this.form.address = this.pickerTemp.address;
-      this.searchQuery = this.pickerTemp.address.split(',')[0];
-      this.closePickerModal();
-    }
   }
 };
 </script>
 
 <style scoped>
-/* ESTILOS DE SIEMPRE */
+/* =========================================
+   LAYOUT PRINCIPAL
+   ========================================= */
 .orders-page {
   width: 100%;
   height: 100vh;
@@ -673,15 +637,19 @@ export default {
   display: flex;
   flex: 1;
   overflow: hidden;
+  /* El media query abajo controla la dirección en móviles */
 }
 
-/* TABLA */
+/* =========================================
+   SECCIÓN IZQUIERDA (TABLA)
+   ========================================= */
 .table-section {
   flex: 3;
   display: flex;
   flex-direction: column;
   padding: 25px;
   border-right: 1px solid rgba(212, 175, 55, 0.1);
+  min-width: 0; /* Evita desbordamiento en flex */
 }
 
 .section-header {
@@ -713,20 +681,29 @@ export default {
   font-weight: bold;
 }
 
-/* NUEVO INPUT PARA EL NOMBRE DE LA RUTA */
+/* Input Nombre de Ruta */
 .route-name-wrapper {
   margin-bottom: 15px;
 }
 
 .route-input {
-  /* Reutiliza estilo base de input-field pero ajustado */
   width: 100%;
   padding: 12px;
-  background: rgba(0, 0, 0, 0.3); /* Un poco más oscuro para diferenciar */
+  background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 8px;
   color: #fff;
   font-size: 1rem;
   font-weight: 500;
+  box-sizing: border-box;
+  transition: all 0.2s;
+}
+
+.route-input:focus {
+  outline: none;
+  border-color: #d4af37;
+  background: rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.1);
 }
 
 .route-input::placeholder {
@@ -734,7 +711,7 @@ export default {
   font-style: italic;
 }
 
-/* BOTÓN OPTIMIZAR */
+/* Botón Optimizar */
 .btn-optimize {
   background: linear-gradient(90deg, #d4af37, #b8860b);
   border: none;
@@ -747,6 +724,9 @@ export default {
   transition: transform 0.2s, box-shadow 0.2s;
   font-size: 0.9rem;
   min-width: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-optimize:hover:not(:disabled) {
@@ -762,16 +742,7 @@ export default {
   border: 1px solid rgba(212, 175, 55, 0.1);
 }
 
-.spinner-tiny {
-  width: 16px;
-  height: 16px;
-  border: 2px solid #000;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  display: inline-block;
-}
-
+/* Tabla y Scroll */
 .table-scroll-area {
   flex: 1;
   overflow-y: auto;
@@ -806,15 +777,6 @@ export default {
   vertical-align: middle;
 }
 
-.fade-in-row {
-  animation: fadeInRow 0.3s ease forwards;
-}
-
-@keyframes fadeInRow {
-  from { opacity: 0; transform: translateX(-10px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
 .custom-table tr:hover {
   background: rgba(255, 255, 255, 0.03);
 }
@@ -839,6 +801,7 @@ export default {
   text-align: center;
 }
 
+/* Estados vacíos */
 .empty-cell {
   text-align: center;
   padding: 50px;
@@ -857,6 +820,7 @@ export default {
   opacity: 0.5;
 }
 
+/* Badges y botones de acción */
 .photo-badge {
   margin-right: 5px;
   cursor: help;
@@ -889,7 +853,9 @@ export default {
   border-color: #ff5050;
 }
 
-/* FORMULARIO */
+/* =========================================
+   SECCIÓN DERECHA (FORMULARIO)
+   ========================================= */
 .form-section {
   flex: 1.2;
   background: rgba(212, 175, 55, 0.02);
@@ -897,6 +863,7 @@ export default {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  border-top: none; 
 }
 
 .form-title {
@@ -935,24 +902,7 @@ label {
   margin-left: 2px;
 }
 
-.btn-open-map {
-  margin-bottom: 5px;
-  background: rgba(212, 175, 55, 0.1);
-  border: 1px dashed #d4af37;
-  color: #d4af37;
-  padding: 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-align: left;
-  transition: 0.2s;
-}
-
-.btn-open-map:hover {
-  background: rgba(212, 175, 55, 0.2);
-}
-
+/* Inputs generales */
 .input-wrapper {
   position: relative;
 }
@@ -981,6 +931,13 @@ label {
   border-color: #222;
 }
 
+.textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+/* Loader dentro del input */
 .input-loader {
   position: absolute;
   right: 10px;
@@ -993,6 +950,7 @@ label {
   animation: spin 1s linear infinite;
 }
 
+/* Lista de sugerencias (Autocompletar) */
 .suggestions-list {
   position: absolute;
   top: 100%;
@@ -1055,13 +1013,24 @@ label {
   text-overflow: ellipsis;
 }
 
-.textarea {
-  resize: vertical;
-  min-height: 80px;
-  font-family: inherit;
+/* Mapa Inline en el Formulario */
+.inline-map-wrapper {
+  width: 100%;
+  height: 220px; /* Tamaño mejorado */
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 5px;
+  position: relative;
 }
 
-/* SWITCH */
+.map-container {
+  width: 100%;
+  height: 100%;
+  background: #111;
+}
+
+/* Switch */
 .switch-container {
   display: flex;
   align-items: center;
@@ -1107,6 +1076,7 @@ input:checked+.slider:before {
   color: #ccc;
 }
 
+/* Botón Submit */
 .btn-submit {
   margin-top: 10px;
   padding: 12px;
@@ -1121,9 +1091,10 @@ input:checked+.slider:before {
   justify-content: center;
   align-items: center;
   gap: 8px;
+  width: 100%;
 }
 
-.btn-submit:hover {
+.btn-submit:hover:not(:disabled) {
   background: #ffdb60;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
@@ -1137,35 +1108,9 @@ input:checked+.slider:before {
   box-shadow: none;
 }
 
-.spinner-mini {
-  width: 16px;
-  height: 16px;
-  border: 2px solid #000;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-.spinner {
-  width: 30px;
-  height: 30px;
-  border: 3px solid #d4af37;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 15px;
-}
-
-.state-msg {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: #666;
-}
-
-/* MODALES Y VARIOS */
+/* =========================================
+   MODALES
+   ========================================= */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1196,16 +1141,9 @@ input:checked+.slider:before {
   flex-direction: column;
 }
 
-.large-modal { max-width: 800px; }
-.small-modal { max-width: 380px; }
-
-.text-center { text-align: center; }
-.success-body { padding: 30px 20px; display: flex; flex-direction: column; align-items: center; }
-.success-icon { font-size: 3rem; margin-bottom: 15px; }
-.success-title { color: #d4af37; margin: 0 0 10px 0; }
-.success-text { font-size: 1.1rem; margin: 5px 0; }
-.success-subtext { font-size: 0.9rem; color: #888; margin-bottom: 25px; }
-.full-width { width: 100%; }
+.small-modal {
+  max-width: 380px;
+}
 
 .modal-header {
   padding: 15px 20px;
@@ -1216,51 +1154,215 @@ input:checked+.slider:before {
   background: #0f0c08;
 }
 
-.modal-title { margin: 0; color: #d4af37; font-size: 1.2rem; }
-.modal-close-x { background: transparent; border: none; color: #888; font-size: 1.5rem; cursor: pointer; }
-.modal-close-x:hover { color: #fff; }
-
-.modal-body { padding: 0; display: flex; flex-direction: column; }
-.map-wrapper { width: 100%; height: 300px; border-bottom: 1px solid rgba(212, 175, 55, 0.2); position: relative; }
-.large-map { height: 400px; }
-.map-container { width: 100%; height: 100%; }
-.map-tooltip {
-  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.8); color: #d4af37; padding: 5px 12px;
-  border-radius: 20px; font-size: 0.8rem; border: 1px solid #d4af37; pointer-events: none;
+.modal-title {
+  margin: 0;
+  color: #d4af37;
+  font-size: 1.2rem;
 }
 
-.order-info, .picker-info { padding: 20px; background: #1a1a1a; }
-.info-row { margin-bottom: 10px; display: flex; gap: 10px; }
-.info-row .label { color: #d4af37; font-weight: 600; min-width: 100px; }
-.info-row .value { color: #ccc; }
-.highlight-gold { color: #d4af37; font-weight: bold; border: 1px solid #d4af37; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; }
-.picker-address { color: #fff; font-size: 1rem; font-weight: bold; margin: 0 0 5px 0; }
+.modal-close-x {
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.modal-close-x:hover {
+  color: #fff;
+}
+
+.modal-body {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Cuerpo modal de éxito */
+.success-body {
+  padding: 30px 20px;
+  align-items: center;
+  text-align: center;
+}
+
+.success-icon {
+  font-size: 3rem;
+  margin-bottom: 15px;
+}
+
+.success-title {
+  color: #d4af37;
+  margin: 0 0 10px 0;
+}
+
+.success-text {
+  font-size: 1.1rem;
+  margin: 5px 0;
+  color: #fff;
+}
+
+.success-subtext {
+  font-size: 0.9rem;
+  color: #888;
+  margin: 5px 0 25px 0;
+}
+
+/* Modal con mapa */
+.map-wrapper {
+  width: 100%;
+  height: 300px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+  position: relative;
+}
+
+.order-info {
+  padding: 20px;
+  background: #1a1a1a;
+}
+
+.info-row {
+  margin-bottom: 10px;
+  display: flex;
+  gap: 10px;
+}
+
+.info-row .label {
+  color: #d4af37;
+  font-weight: 600;
+  min-width: 80px;
+}
+
+.info-row .value {
+  color: #ccc;
+}
 
 .modal-footer {
-  padding: 15px; border-top: 1px solid rgba(255, 255, 255, 0.1);
-  text-align: right; background: #0f0c08; display: flex; justify-content: flex-end; gap: 10px;
+  padding: 15px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: right;
+  background: #0f0c08;
 }
 
-.btn-close-modal, .btn-cancel-modal {
-  background: transparent; border: 1px solid #d4af37; color: #d4af37; padding: 8px 24px;
-  border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s;
-  text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px;
+.btn-close-modal {
+  background: transparent;
+  border: 1px solid #d4af37;
+  color: #d4af37;
+  padding: 8px 24px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  font-size: 0.85rem;
 }
-.btn-close-modal:hover, .btn-cancel-modal:hover { background: rgba(212, 175, 55, 0.15); color: #fff; border-color: #fff; }
+
+.btn-close-modal:hover {
+  background: rgba(212, 175, 55, 0.15);
+  color: #fff;
+}
 
 .btn-confirm-modal {
-  background: #d4af37; border: none; color: #000; padding: 8px 24px; border-radius: 6px;
-  font-weight: 700; cursor: pointer; transition: 0.2s; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 0.5px;
+  background: #d4af37;
+  border: none;
+  color: #000;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  transition: 0.2s;
+  text-transform: uppercase;
 }
-.btn-confirm-modal:hover { background: #ffdb60; }
-.btn-confirm-modal:disabled { background: #554415; color: #888; cursor: not-allowed; }
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); }
-::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #d4af37; }
+.btn-confirm-modal:hover {
+  background: #ffdb60;
+}
 
-.fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+/* =========================================
+   UTILIDADES Y ANIMACIONES
+   ========================================= */
+.spinner-tiny {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #000;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+.spinner-mini {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #000;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fadeInRow {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.fade-in-row {
+  animation: fadeInRow 0.3s ease forwards;
+}
+
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s;
+}
+
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
+/* Scrollbars Personalizados */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #d4af37;
+}
+
+/* =========================================
+   RESPONSIVE (Mejora de tamaños)
+   ========================================= */
+@media (max-width: 1000px) {
+  .split-content {
+    flex-direction: column;
+    overflow-y: auto; /* Permite scroll vertical en toda el área */
+  }
+
+  .table-section {
+    flex: none;
+    height: 50%; /* Mitad para tabla */
+    border-right: none;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.1);
+  }
+
+  .form-section {
+    flex: none;
+    height: 50%; /* Mitad para formulario */
+  }
+  
+  .desc-cell {
+    max-width: 150px; /* Reducir ancho texto en móvil */
+  }
+}
 </style>
