@@ -25,16 +25,32 @@
             <button 
               class="btn-optimize" 
               @click="generateRoute"
-              :disabled="orders.length < 2"
+              :disabled="orders.length < 2 || isOptimizing"
               :title="orders.length < 2 ? 'Necesitas al menos 2 pedidos' : 'Crear ruta'"
             >
-              ⚡ Generar Ruta Optimizada
+              <span v-if="isOptimizing" class="spinner-tiny"></span>
+              <span v-else>⚡ Generar Ruta Optimizada</span>
             </button>
+          </div>
+
+          <!-- INPUT: NOMBRE DE LA RUTA -->
+          <div class="route-name-wrapper">
+            <input 
+              type="text" 
+              v-model="routeName" 
+              class="input-field route-input" 
+              placeholder="Nombre de la Ruta (Ej: Repartos Norte - Lunes)"
+            />
           </div>
 
           <div class="table-scroll-area">
 
-            <table class="custom-table">
+            <!-- LOADING STATE -->
+            <div v-if="isLoadingList" class="state-msg">
+              <div class="spinner"></div> Sincronizando...
+            </div>
+
+            <table v-else class="custom-table">
               <thead>
                 <tr>
                   <th class="col-id">#</th>
@@ -49,7 +65,7 @@
                     <div class="empty-content">
                       <span class="empty-icon">📍</span>
                       <p>La lista de ruta está vacía.</p>
-                      <small>Usa el formulario para agregar paradas.</small>
+                      <small>El primer pedido agregado será el punto de partida (Depósito).</small>
                     </div>
                   </td>
                 </tr>
@@ -210,8 +226,9 @@
               <div class="modal-body success-body">
                 <div class="success-icon">🚀</div>
                 <h2 class="modal-title success-title">¡Ruta Generada!</h2>
-                <p class="success-text">Hemos optimizado la ruta con tus pedidos.</p>
-                <p class="success-subtext">Puedes verla en la sección de <strong>Rutas</strong>.</p>
+                <p class="text-white success-text">Hemos optimizado y guardado la ruta.</p>
+                <p class="success-subtext">Nombre: <strong>{{ routeName }}</strong></p>
+                <p class="success-subtext">Distancia Total: <strong>{{ routeDistance.toFixed(2) }} km</strong></p>
                 <button class="btn-confirm-modal full-width" @click="showRouteModal = false">Entendido</button>
               </div>
             </div>
@@ -237,8 +254,11 @@ export default {
       mapboxAccessToken: "pk.eyJ1IjoianZlbGV6MDAwIiwiYSI6ImNtaWkzOHZ5dTAxbnkzZHE3Mmo2c2VnbjQifQ.R-ikqyiMMZVwUHOH9CJ6mg",
 
       orders: [], 
+      routeName: "", 
       
       isSubmitting: false,
+      isOptimizing: false,
+      isLoadingList: false,
 
       form: {
         address: "",
@@ -263,16 +283,45 @@ export default {
       pickerTemp: { address: "", lat: null, lng: null },
 
       showRouteModal: false,
+      routeDistance: 0
     };
   },
-  mounted() {
-    // No cargamos datos al inicio
-  },
   methods: {
-    
-    // --- 1. AGREGAR A LA RUTA (CORREGIDO) ---
+    // --- 🔑 UTILS TOKEN ---
+    getCleanToken() {
+      let token = localStorage.getItem('token');
+      if (!token) return null;
+      try {
+        const parsed = JSON.parse(token);
+        if (typeof parsed === 'object' && parsed.token) token = parsed.token;
+        else if (typeof parsed === 'string') token = parsed;
+      } catch (e) {}
+      // Eliminar comillas extras si existen
+      token = String(token).replace(/^"|"$/g, '');
+      // Eliminar "Bearer " si ya existe para no duplicarlo
+      if (token.toLowerCase().startsWith('bearer ')) {
+        token = token.slice(7).trim();
+      }
+      return token;
+    },
+
+    getUserIdFromToken(token) {
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        const payload = JSON.parse(jsonPayload);
+        // Retornamos el ID o un valor por defecto
+        return payload.nameid || payload.companyId || "default";
+      } catch (error) { 
+        return "default"; 
+      }
+    },
+
+    // --- 1. AGREGAR A LA RUTA ---
     async addOrder() {
-      // 1. Validaciones
       if (!this.form.address && this.searchQuery) {
         this.form.address = this.searchQuery;
       }
@@ -281,24 +330,19 @@ export default {
       }
 
       this.isSubmitting = true;
-
-      // 2. Preparar Payload (Lo guardamos en variable para reutilizarlo en la vista)
-      const latFixed = parseFloat(Number(this.form.lat).toFixed(6)) || 0;
-      const lngFixed = parseFloat(Number(this.form.lng).toFixed(6)) || 0;
-      
       const payload = {
-        description: this.form.description.substring(0, 500).trim(),
-        latitude: latFixed,
-        longitude: lngFixed,
+        description: this.form.description.trim(),
+        latitude: parseFloat(Number(this.form.lat).toFixed(6)),
+        longitude: parseFloat(Number(this.form.lng).toFixed(6)),
         address: this.form.address.substring(0, 200).trim(),
         requiresEvidence: !!this.form.requirePhoto
       };
 
       try {
-        const token = localStorage.getItem('token');
+        const token = this.getCleanToken();
         if (!token) throw new Error("Sesión expirada");
 
-        // 3. Guardar en BD para obtener ID
+        // 1. Guardar en BD para obtener ID real
         const res = await fetch(`${this.baseUrl}/api/Orders`, {
           method: 'POST',
           headers: {
@@ -313,24 +357,27 @@ export default {
           throw new Error(txt || `Error ${res.status}`);
         }
 
-        // 4. Obtener respuesta para sacar el ID
         const responseData = await res.json();
+        
+        // Obtenemos el ID de forma flexible (id, orderId, Id)
+        const realId = responseData.orderId || responseData.id || responseData.Id;
+        
+        if (!realId) {
+          console.error("Respuesta del servidor:", responseData);
+          throw new Error("El pedido se creó pero no se recibió un ID válido.");
+        }
 
-        // 5. AGREGAR A LISTA LOCAL (USANDO DATOS DEL FORMULARIO + ID DE BD)
-        // Esto garantiza que se muestre exactamente lo que escribió el usuario
+        // 2. Agregar a lista local VISUAL
         const mappedOrder = {
-          id: responseData.id || Date.now(), // ID real de la BD
-          address: payload.address,          // Usamos el payload que acabamos de enviar
+          id: realId, 
+          address: payload.address,
           description: payload.description,
           lat: payload.latitude,
           lng: payload.longitude,
           requirePhoto: payload.requiresEvidence
         };
 
-        // Lo agregamos a la vista
-        this.orders.unshift(mappedOrder);
-
-        // 6. Limpiar form
+        this.orders.push(mappedOrder);
         this.resetForm();
 
       } catch (error) {
@@ -346,33 +393,124 @@ export default {
       this.searchQuery = "";
     },
 
-    // --- 2. GENERAR RUTA OPTIMIZADA ---
+    // --- 2. GENERAR RUTA (OPTIMIZAR + GUARDAR) ---
     async generateRoute() {
-      // AQUÍ IRÁ EL CONSUMO DEL ENDPOINT DE OPTIMIZACIÓN
-      console.log("Generando ruta con IDs:", this.orders.map(o => o.id));
+      if (!this.routeName || !this.routeName.trim()) return alert("⚠️ Por favor, ingresa un nombre para la ruta.");
+      if (this.orders.length < 2) return alert("Agrega al menos 2 pedidos para crear una ruta.");
       
-      this.orders = []; // Limpia la lista visual
-      this.showRouteModal = true; // Muestra éxito
-    },
+      this.isOptimizing = true;
+      const token = this.getCleanToken();
+      const fleetId = String(this.getUserIdFromToken(token));
 
-    // --- 3. QUITAR DE LA LISTA (Y BORRAR DE BD) ---
-    async deleteOrder(id) {
+      // --- PASO 1: MAPEO SEGURO (String Keys) ---
+      const tempMap = new Map();
+
+      const locationsPayload = this.orders.map((order, index) => {
+        const simpleId = index + 1; 
+        // GUARDAR CON CLAVE STRING para asegurar coincidencia
+        tempMap.set(String(simpleId), order); 
+
+        return {
+          id: simpleId, 
+          latitude: Number(parseFloat(order.lat).toFixed(6)),
+          longitude: Number(parseFloat(order.lng).toFixed(6))
+        };
+      });
+
+      console.log("🚀 Payload a Java:", { fleetId, locations: locationsPayload });
+
       try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${this.baseUrl}/api/Orders/${id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
+        // --- PASO 2: LLAMADA AL OPTIMIZADOR (JAVA) ---
+        const resOptimize = await fetch(`${this.baseUrl}/api/Optimizer/optimize`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ fleetId, locations: locationsPayload })
         });
 
-        if (res.ok) {
-          // Remover solo de la lista local
-          this.orders = this.orders.filter(o => o.id !== id);
-        } else {
-          alert("Error al eliminar el pedido.");
+        if (!resOptimize.ok) {
+           const txt = await resOptimize.text();
+           throw new Error(txt.includes("<!doctype") ? "Error del servidor de optimización" : txt);
         }
+
+        const optimizedData = await resOptimize.json();
+        console.log("📩 Respuesta Java:", optimizedData);
+        
+        this.routeDistance = optimizedData.totalDistanceKm || 0;
+
+        // --- PASO 3: RECUPERAR LOS IDS REALES ORDENADOS ---
+        const sortedList = optimizedData.optimizedOrder || [];
+        sortedList.sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+        
+        // CORRECCIÓN CLAVE: Recuperar usando String Key
+        const orderedRealIds = sortedList.map(item => {
+           const key = String(item.id); 
+           const original = tempMap.get(key);
+           return original ? original.id : null;
+        }).filter(id => id !== null); 
+
+        console.log("✅ IDs Reales para guardar:", orderedRealIds);
+
+        // Validación crítica: Si no hay IDs, abortar
+        if (orderedRealIds.length === 0) {
+            throw new Error("Error interno: No se pudieron recuperar los IDs de los pedidos. La lista a guardar está vacía.");
+        }
+
+        // --- PASO 4: GUARDAR LA RUTA EN BASE DE DATOS (.NET) ---
+        const savePayload = {
+          routeName: this.routeName.trim(),
+          orderIds: orderedRealIds
+        };
+        console.log("💾 Guardando en .NET:", savePayload);
+
+        const resSave = await fetch(`${this.baseUrl}/api/Routes/save`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json', // Cabecera importante
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(savePayload)
+        });
+
+        if (!resSave.ok) {
+           if (resSave.status === 401) {
+             throw new Error("⛔ 401 NO AUTORIZADO: El servidor rechazó tu credencial al guardar. Puede ser que el backend no reconozca tu rol o compañía.");
+           }
+           if (resSave.status === 403) {
+             throw new Error("⛔ 403 PROHIBIDO: No tienes permiso para guardar rutas (Falta CompanyId o Rol incorrecto).");
+           }
+           const txt = await resSave.text();
+           throw new Error("Error guardando ruta: " + txt);
+        }
+
+        // ÉXITO FINAL
+        this.orders = []; // Limpiar lista
+        this.routeName = ""; // Limpiar nombre
+        this.showRouteModal = true;
+
       } catch (error) {
-        console.error(error);
+        console.error("Error proceso ruta:", error);
+        alert("⚠️ " + error.message);
+      } finally {
+        this.isOptimizing = false;
       }
+    },
+
+    // --- 3. QUITAR DE LA LISTA ---
+    async deleteOrder(id) {
+      if (String(id).length < 15) { 
+        try {
+          const token = this.getCleanToken();
+          await fetch(`${this.baseUrl}/api/Orders/${id}`, {
+            method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
+          });
+        } catch (e) { console.error(e); }
+      }
+      this.orders = this.orders.filter(o => o.id !== id);
     },
 
     // --- UTILS MAPBOX ---
@@ -418,13 +556,10 @@ export default {
         container: this.$refs.infoMapContainer,
         style: "mapbox://styles/mapbox/dark-v11",
         center: center,
-        zoom: hasCoords ? 15 : 11
+        zoom: 15
       });
       this.infoMapInstance = markRaw(map);
-      map.on("load", () => {
-        map.resize();
-        if (hasCoords) new mapboxgl.Marker({ color: "#d4af37" }).setLngLat(center).addTo(map);
-      });
+      new mapboxgl.Marker({ color: "#d4af37" }).setLngLat(center).addTo(map);
     },
     openPickerModal() {
       this.pickerTemp = { address: "", lat: null, lng: null };
@@ -483,7 +618,7 @@ export default {
 </script>
 
 <style scoped>
-/* ============= ESTRUCTURA MAESTRA ============= */
+/* ESTILOS DE SIEMPRE */
 .orders-page {
   width: 100%;
   height: 100vh;
@@ -578,6 +713,27 @@ export default {
   font-weight: bold;
 }
 
+/* NUEVO INPUT PARA EL NOMBRE DE LA RUTA */
+.route-name-wrapper {
+  margin-bottom: 15px;
+}
+
+.route-input {
+  /* Reutiliza estilo base de input-field pero ajustado */
+  width: 100%;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.3); /* Un poco más oscuro para diferenciar */
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.route-input::placeholder {
+  color: #777;
+  font-style: italic;
+}
+
 /* BOTÓN OPTIMIZAR */
 .btn-optimize {
   background: linear-gradient(90deg, #d4af37, #b8860b);
@@ -590,6 +746,7 @@ export default {
   box-shadow: 0 4px 12px rgba(212, 175, 55, 0.25);
   transition: transform 0.2s, box-shadow 0.2s;
   font-size: 0.9rem;
+  min-width: 140px;
 }
 
 .btn-optimize:hover:not(:disabled) {
@@ -603,6 +760,16 @@ export default {
   cursor: not-allowed;
   box-shadow: none;
   border: 1px solid rgba(212, 175, 55, 0.1);
+}
+
+.spinner-tiny {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #000;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: inline-block;
 }
 
 .table-scroll-area {
@@ -977,6 +1144,25 @@ input:checked+.slider:before {
   border-top-color: transparent;
   border-radius: 50%;
   animation: spin 1s linear infinite;
+}
+
+.spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid #d4af37;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+.state-msg {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #666;
 }
 
 /* MODALES Y VARIOS */

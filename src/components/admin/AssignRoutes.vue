@@ -10,49 +10,103 @@
     <!-- PANEL PRINCIPAL -->
     <div class="main-panel">
 
-      <div class="list-header-row">
-        <h2 class="panel-subtitle">📍 Rutas Disponibles</h2>
-        <span class="badge">{{ routes.length }} pendientes</span>
-      </div>
+      <!-- LAYOUT DIVIDIDO (IZQUIERDA / DERECHA) -->
+      <div class="split-layout">
 
-      <!-- LISTA DE RUTAS (CARDS) -->
-      <div class="scroll-area">
-        <div v-if="isLoadingRoutes" class="state-msg">
-          <div class="spinner"></div> Buscando rutas...
-        </div>
+        <!-- ================= SECCIÓN IZQUIERDA: RUTAS PENDIENTES ================= -->
+        <div class="panel-section left-panel">
+          <header class="panel-header">
+            <h2 class="panel-title">📍 Rutas Pendientes</h2>
+            <span class="badge warning">{{ unassignedRoutes.length }} sin conductor</span>
+          </header>
 
-        <div v-else-if="routes.length === 0" class="state-msg">
-          No hay rutas pendientes de asignación.
-        </div>
-
-        <div v-else class="cards-grid">
-          <div v-for="route in routes" :key="route.id" class="route-card">
-            <div class="route-header">
-              <div class="route-icon">🗺️</div>
-              <div class="route-info">
-                <h3 class="route-name">{{ route.name }}</h3>
-                <p class="route-meta">{{ route.orders.length }} Paradas • {{ route.totalDist }} km est.</p>
-              </div>
+          <div class="scroll-container">
+            <!-- LOADING -->
+            <div v-if="isLoadingRoutes" class="state-msg">
+              <div class="spinner"></div> Cargando...
             </div>
-            
-            <div class="route-actions">
-              <button class="btn-icon-action info" @click="openInfoModal(route)" title="Ver Información">
-                ℹ️
-              </button>
-              <button class="btn-icon-action edit" @click="openEditModal(route)" title="Editar Puntos">
-                ✏️
-              </button>
-              <button class="btn-main-assign" @click="openAssignModal(route)">
-                👤 Asignar a Conductor
-              </button>
+
+            <!-- EMPTY -->
+            <div v-else-if="unassignedRoutes.length === 0" class="state-msg">
+              No hay rutas pendientes por asignar.
+            </div>
+
+            <!-- LISTA -->
+            <div v-else class="cards-list">
+              <div v-for="route in unassignedRoutes" :key="route.id" class="route-card">
+                <div class="route-header">
+                  <div class="route-icon">🗺️</div>
+                  <div class="route-info">
+                    <h3 class="route-name">{{ route.name }}</h3>
+                    <p class="route-meta">{{ route.orderIds.length }} Paradas • {{ route.totalDist }} km</p>
+                  </div>
+                </div>
+                
+                <div class="route-actions">
+                  <button class="btn-icon-action info" @click="openInfoModal(route)" title="Ver Información">
+                    ℹ️
+                  </button>
+                  <button class="btn-icon-action edit" @click="openEditModal(route)" title="Ver Puntos">
+                    ✏️
+                  </button>
+                  <button class="btn-main-assign" @click="openAssignModal(route)">
+                    👤 Asignar
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+
+        <!-- ================= SECCIÓN DERECHA: RUTAS ASIGNADAS ================= -->
+        <div class="panel-section right-panel">
+          <header class="panel-header">
+            <h2 class="panel-title">✅ Rutas Asignadas</h2>
+            <span class="badge success">{{ assignedRoutes.length }} en curso</span>
+          </header>
+
+          <div class="scroll-container">
+            <!-- LOADING -->
+            <div v-if="isLoadingRoutes" class="state-msg">
+              <div class="spinner"></div>
+            </div>
+
+            <!-- EMPTY -->
+            <div v-else-if="assignedRoutes.length === 0" class="state-msg">
+              No hay rutas en curso actualmente.
+            </div>
+
+            <!-- LISTA -->
+            <div v-else class="cards-list">
+              <div v-for="route in assignedRoutes" :key="route.id" class="route-card assigned">
+                <div class="route-header">
+                  <div class="route-icon success-icon">🚚</div>
+                  <div class="route-info">
+                    <h3 class="route-name">{{ route.name }}</h3>
+                    <p class="route-meta">Conductor: <strong>{{ route.driverName }}</strong></p>
+                    <p class="route-submeta">📞 {{ route.driverPhone }}</p>
+                  </div>
+                </div>
+                
+                <div class="route-actions">
+                  <button class="btn-icon-action info" @click="openInfoModal(route)" title="Ver Información">
+                    ℹ️
+                  </button>
+                  <!-- Botón informativo -->
+                  <button class="btn-assigned-status" disabled>
+                    En Curso
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 
     <!-- ================================================= -->
-    <!-- MODAL 1: INFORMACIÓN (SOLO LECTURA)               -->
+    <!-- MODAL 1: INFORMACIÓN DETALLADA                    -->
     <!-- ================================================= -->
     <teleport to="body">
       <transition name="fade">
@@ -60,26 +114,28 @@
           <div class="modal-container">
             <div class="modal-card large-card">
               <header class="modal-header">
-                <h2 class="modal-title">Detalle de Ruta</h2>
+                <h2 class="modal-title">Detalle de Ruta: {{ selectedRoute?.name }}</h2>
                 <button class="modal-close-x" @click="closeModals">✕</button>
               </header>
               <div class="modal-body">
                 <!-- MAPA -->
                 <div class="map-wrapper">
                   <div ref="mapContainerInfo" class="map-container"></div>
+                  <div class="map-overlay-info">
+                    <small>{{ selectedRouteDetails.length }} Puntos encontrados</small>
+                  </div>
                 </div>
                 <!-- LISTA DE PUNTOS -->
                 <div class="points-list">
-                  <h3 class="section-title">Puntos de Entrega</h3>
-                  <div v-for="(point, index) in selectedRoute?.orders" :key="point.id" class="point-item">
+                  <h3 class="section-title">Puntos de Entrega (Ordenados)</h3>
+                  <div v-if="selectedRouteDetails.length === 0" class="empty-state-mini">
+                    ⚠️ Cargando información...
+                  </div>
+                  <div v-for="(point, index) in selectedRouteDetails" :key="point.id" class="point-item">
                     <div class="point-index">{{ index + 1 }}</div>
                     <div class="point-data">
-                      <p class="p-addr">{{ point.address }}</p>
-                      <p class="p-desc">{{ point.description }}</p>
-                      <div class="p-meta">
-                        <span>🌐 {{ point.lat }}, {{ point.lng }}</span>
-                        <span v-if="point.requirePhoto" class="tag-evidence">📸 Requiere Foto</span>
-                      </div>
+                      <p class="p-addr">📍 {{ point.address }}</p>
+                      <p class="p-desc">📦 {{ point.description }}</p>
                     </div>
                   </div>
                 </div>
@@ -91,7 +147,7 @@
     </teleport>
 
     <!-- ================================================= -->
-    <!-- MODAL 2: EDICIÓN (ELIMINAR PUNTOS)                -->
+    <!-- MODAL 2: EDICIÓN (VISUAL)                         -->
     <!-- ================================================= -->
     <teleport to="body">
       <transition name="fade">
@@ -99,7 +155,7 @@
           <div class="modal-container">
             <div class="modal-card large-card">
               <header class="modal-header">
-                <h2 class="modal-title">Editar Ruta</h2>
+                <h2 class="modal-title">Visualizar Puntos</h2>
                 <button class="modal-close-x" @click="closeModals">✕</button>
               </header>
               <div class="modal-body">
@@ -107,19 +163,17 @@
                   <div ref="mapContainerEdit" class="map-container"></div>
                 </div>
                 <div class="points-list editable">
-                  <div v-for="(point, index) in selectedRoute?.orders" :key="point.id" class="point-item">
+                  <div v-for="(point, index) in selectedRouteDetails" :key="point.id" class="point-item">
                     <div class="point-index">{{ index + 1 }}</div>
                     <div class="point-data">
                       <p class="p-addr">{{ point.address }}</p>
                     </div>
-                    <button class="btn-remove-point" @click="removeOrderFromRoute(point.id)">
-                      🗑️
-                    </button>
+                    <button class="btn-remove-point disabled" title="Solo lectura">🔒</button>
                   </div>
                 </div>
               </div>
               <footer class="modal-footer">
-                <button class="btn-save" @click="closeModals">Guardar Cambios</button>
+                <button class="btn-save" @click="closeModals">Cerrar</button>
               </footer>
             </div>
           </div>
@@ -128,7 +182,7 @@
     </teleport>
 
     <!-- ================================================= -->
-    <!-- MODAL 3: ASIGNACIÓN (LISTA DE CONDUCTORES)        -->
+    <!-- MODAL 3: ASIGNACIÓN                               -->
     <!-- ================================================= -->
     <teleport to="body">
       <transition name="fade">
@@ -141,9 +195,13 @@
               </header>
               
               <div class="modal-body driver-selection-body">
-                <p class="instruction-text">Elige a quién asignarás esta ruta de <strong>{{ selectedRoute?.orders.length }} paradas</strong>:</p>
+                <p class="instruction-text">
+                  Asignar ruta <strong>{{ selectedRoute?.name }}</strong> 
+                  ({{ selectedRoute?.orderIds.length }} paradas)
+                </p>
                 
                 <div v-if="isLoadingDrivers" class="spinner-container"><div class="spinner"></div></div>
+                <div v-else-if="drivers.length === 0" class="empty-state-mini">No hay conductores disponibles.</div>
                 
                 <div v-else class="drivers-grid-select">
                   <div 
@@ -167,7 +225,27 @@
       </transition>
     </teleport>
 
-    <!-- OVERLAY DE CARGA GLOBAL -->
+    <!-- ================================================= -->
+    <!-- MODAL 4: MENSAJES (EXITO/ERROR)                   -->
+    <!-- ================================================= -->
+    <teleport to="body">
+      <transition name="fade">
+        <div v-if="showMessageModal" class="modal-overlay" @click.self="closeMessageModal">
+          <div class="modal-container">
+            <div class="modal-card small-modal text-center">
+              <div class="modal-body success-body">
+                <div class="success-icon">{{ messageType === 'success' ? '✅' : '⚠️' }}</div>
+                <h2 class="modal-title success-title">{{ messageTitle }}</h2>
+                <p class="success-text">{{ messageBody }}</p>
+                <button class="btn-confirm-modal full-width" @click="closeMessageModal">Aceptar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </teleport>
+
+    <!-- OVERLAY DE CARGA -->
     <transition name="fade">
       <div v-if="isProcessing" class="global-loader">
         <div class="spinner large"></div>
@@ -191,10 +269,15 @@ export default {
       mapboxAccessToken: "pk.eyJ1IjoianZlbGV6MDAwIiwiYSI6ImNtaWkzOHZ5dTAxbnkzZHE3Mmo2c2VnbjQifQ.R-ikqyiMMZVwUHOH9CJ6mg",
 
       // Data Principal
-      routes: [], // Array de objetos { id, name, orders: [] }
+      unassignedRoutes: [],
+      assignedRoutes: [],
       drivers: [],
       
-      // Estados de carga
+      ordersMap: new Map(),
+      
+      selectedRoute: null,
+      selectedRouteDetails: [], 
+
       isLoadingRoutes: false,
       isLoadingDrivers: false,
       isProcessing: false,
@@ -204,63 +287,108 @@ export default {
       showEditModal: false,
       showAssignModal: false,
       
-      selectedRoute: null,
+      // Modal Mensajes
+      showMessageModal: false,
+      messageTitle: '',
+      messageBody: '',
+      messageType: 'success',
+
       mapInstance: null,
       markers: []
     };
   },
-  mounted() {
+  async mounted() {
+    await this.fetchAllOrders(); 
     this.fetchRoutes();
     this.fetchDrivers();
   },
   methods: {
+    getCleanToken() {
+      let token = localStorage.getItem('token');
+      if (!token) return null;
+      token = String(token).replace(/^"|"$/g, '');
+      if (token.toLowerCase().startsWith('bearer ')) token = token.slice(7).trim();
+      return token;
+    },
+
+    // --- MENSAJES ---
+    openMessage(title, body, type = 'success') {
+      this.messageTitle = title;
+      this.messageBody = body;
+      this.messageType = type;
+      this.showMessageModal = true;
+    },
+    closeMessageModal() {
+      this.showMessageModal = false;
+    },
+
     // --- 1. CARGA DE DATOS ---
-    
-    // Simulación de "Rutas": Agrupamos pedidos sin asignar
-    async fetchRoutes() {
-      this.isLoadingRoutes = true;
+    async fetchAllOrders() {
       try {
-        const token = localStorage.getItem('token');
+        const token = this.getCleanToken();
+        if(!token) return;
         const res = await fetch(`${this.baseUrl}/api/Orders`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+        if (res.ok) {
+          const data = await res.json();
+          data.forEach(order => {
+             const info = {
+                id: order.id || order.Id,
+                address: order.address || order.Address,
+                description: order.description || order.Description,
+                lat: order.latitude || order.Latitude,
+                lng: order.longitude || order.Longitude,
+                requirePhoto: order.requiresEvidence || order.RequiresEvidence
+             };
+             this.ordersMap.set(info.id, info);
+          });
+        }
+      } catch (e) { console.error("Error catálogo pedidos:", e); }
+    },
+
+    async fetchRoutes() {
+      this.isLoadingRoutes = true;
+      try {
+        const token = this.getCleanToken();
+        const res = await fetch(`${this.baseUrl}/api/Routes/all`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+        });
         
         if (res.ok) {
-          const allOrders = await res.json();
+          const data = await res.json();
           
-          // Filtramos solo los pedidos que NO tienen conductor (status != 2 y driverId == 0/null)
-          const unassignedOrders = allOrders.filter(o => 
-            (!o.driverId || o.driverId === 0) && o.status !== 2
-          ).map(o => ({
-            id: o.id,
-            address: o.address,
-            description: o.description,
-            lat: o.latitude,
-            lng: o.longitude,
-            requirePhoto: o.requiresEvidence
-          }));
+          this.unassignedRoutes = (data.templates || []).map(this.mapRouteData).reverse();
 
-          // CREAMOS UNA RUTA VIRTUAL CON ESTOS PEDIDOS
-          // Si tuvieras lógica de agrupación, aquí crearías varios objetos
-          if (unassignedOrders.length > 0) {
-            this.routes = [{
-              id: 'temp-route-1',
-              name: 'Ruta Pendiente #1',
-              totalDist: (unassignedOrders.length * 1.5).toFixed(1), // Estimado fake
-              orders: unassignedOrders
-            }];
-          } else {
-            this.routes = [];
-          }
+          this.assignedRoutes = (data.assignedRoutes || []).map(r => {
+             const base = this.mapRouteData(r);
+             if (r.driver) {
+               base.driverName = r.driver.fullName || r.driver.name;
+               base.driverPhone = r.driver.phoneNumber;
+             }
+             return base;
+          }).reverse();
+          
+        } else {
+          console.error("Error al cargar rutas:", res.status);
         }
       } catch (e) { console.error(e); } 
       finally { this.isLoadingRoutes = false; }
     },
 
+    mapRouteData(r) {
+      return {
+        id: r.routeId || r.id, 
+        name: r.routeName || r.RouteName || "Ruta sin nombre",
+        totalDist: (r.totalDistance || r.TotalDistance || 0).toFixed(2),
+        orderIds: r.orderIds || [] 
+      };
+    },
+
     async fetchDrivers() {
       this.isLoadingDrivers = true;
       try {
-        const token = localStorage.getItem('token');
+        const token = this.getCleanToken();
         const res = await fetch(`${this.baseUrl}/api/Drivers`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -275,22 +403,33 @@ export default {
       finally { this.isLoadingDrivers = false; }
     },
 
-    // --- 2. GESTIÓN DE MODALES ---
+    // --- 2. MODALES ---
+    resolveRouteDetails(route) {
+      this.selectedRouteDetails = [];
+      if (!route || !route.orderIds) return;
+      route.orderIds.forEach(orderId => {
+        const details = this.ordersMap.get(orderId);
+        if (details) this.selectedRouteDetails.push(details);
+      });
+    },
 
     openInfoModal(route) {
       this.selectedRoute = route;
+      this.resolveRouteDetails(route);
       this.showInfoModal = true;
       nextTick(() => this.initMap(this.$refs.mapContainerInfo));
     },
 
     openEditModal(route) {
       this.selectedRoute = route;
+      this.resolveRouteDetails(route);
       this.showEditModal = true;
       nextTick(() => this.initMap(this.$refs.mapContainerEdit));
     },
 
     openAssignModal(route) {
       this.selectedRoute = route;
+      this.resolveRouteDetails(route);
       this.showAssignModal = true;
     },
 
@@ -299,62 +438,52 @@ export default {
       this.showEditModal = false;
       this.showAssignModal = false;
       this.selectedRoute = null;
+      this.selectedRouteDetails = [];
       if (this.mapInstance) {
         this.mapInstance.remove();
         this.mapInstance = null;
       }
     },
 
-    // --- 3. LOGICA DE NEGOCIO ---
-
-    // Eliminar pedido de la ruta (simulado o API delete)
-    async removeOrderFromRoute(orderId) {
-      if(!confirm("¿Quitar este punto de la ruta? (Se eliminará el pedido)")) return;
-      
-      try {
-        const token = localStorage.getItem('token');
-        await fetch(`${this.baseUrl}/api/Orders/${orderId}`, {
-          method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        // Actualizar localmente
-        this.selectedRoute.orders = this.selectedRoute.orders.filter(o => o.id !== orderId);
-        
-        // Refrescar mapa
-        this.initMap(this.$refs.mapContainerEdit); 
-        
-        // Si la ruta queda vacía, refrescar todo
-        if(this.selectedRoute.orders.length === 0) {
-          this.closeModals();
-          this.fetchRoutes();
-        }
-      } catch (e) { alert("Error al eliminar"); }
-    },
-
-    // Asignar toda la ruta al conductor seleccionado
+    // --- 3. ASIGNACIÓN ---
     async assignRouteToDriver(driver) {
+      if(!this.selectedRoute) return;
+      
+      const routeName = this.selectedRoute.name;
+      const driverName = driver.name;
+
       this.isProcessing = true;
-      const token = localStorage.getItem("token");
+      const token = this.getCleanToken();
       
       try {
-        // Iteramos sobre todos los pedidos de la ruta y los asignamos
-        const promises = this.selectedRoute.orders.map(order => 
-          fetch(`${this.baseUrl}/api/Orders/${order.id}/assign/${driver.id}`, {
-            method: 'PUT',
-            headers: { 'Authorization': `Bearer ${token}` }
-          })
-        );
-
-        await Promise.all(promises);
+        const cleanPhone = String(driver.phone).replace(/[^0-9+]/g, '');
+        const routeId = this.selectedRoute.id;
+        const url = `${this.baseUrl}/api/Routes/saved/${routeId}/assign`;
         
-        // Éxito
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ driverPhoneNumber: cleanPhone })
+        });
+
+        if (!res.ok) {
+           const txt = await res.text();
+           if (res.status === 401) throw new Error("⛔ 401: Permiso denegado. Verifica que la ruta pertenezca a tu usuario.");
+           throw new Error(txt || `Error ${res.status}`);
+        }
+        
         this.closeModals();
-        this.fetchRoutes(); // Recargar para que desaparezca la ruta asignada
-        alert(`✅ Ruta asignada exitosamente a ${driver.name}`);
+        await this.fetchRoutes(); 
+        
+        this.openMessage("Asignación Exitosa", `La ruta "${routeName}" ha sido asignada a ${driverName}.`, "success");
 
       } catch (e) {
         console.error(e);
-        alert("Hubo un error asignando algunos pedidos.");
+        this.openMessage("Error de Asignación", e.message, "error");
       } finally {
         this.isProcessing = false;
       }
@@ -362,17 +491,16 @@ export default {
 
     // --- 4. MAPAS ---
     initMap(container) {
-      if (!container || !this.selectedRoute) return;
-      
+      if (!container || this.selectedRouteDetails.length === 0) return;
+      const firstPoint = this.selectedRouteDetails[0];
       mapboxgl.accessToken = this.mapboxAccessToken;
       const map = new mapboxgl.Map({
         container: container,
         style: "mapbox://styles/mapbox/navigation-night-v1",
-        center: [-75.5658, 6.2476],
+        center: [firstPoint.lng, firstPoint.lat],
         zoom: 11
       });
       this.mapInstance = markRaw(map);
-
       map.on("load", () => {
         map.resize();
         this.renderMarkers(map);
@@ -380,45 +508,42 @@ export default {
     },
 
     renderMarkers(map) {
+      if (this.markers.length > 0) {
+        this.markers.forEach(m => m.remove());
+        this.markers = [];
+      }
       const bounds = new mapboxgl.LngLatBounds();
-      
-      this.selectedRoute.orders.forEach((order, index) => {
-        // Marcador personalizado numérico
+      this.selectedRouteDetails.forEach((order, index) => {
         const el = document.createElement('div');
         el.className = 'marker-digit';
         el.innerText = index + 1;
-        
-        new mapboxgl.Marker(el)
+        const marker = new mapboxgl.Marker(el)
           .setLngLat([order.lng, order.lat])
           .addTo(map);
-          
+        this.markers.push(marker);
         bounds.extend([order.lng, order.lat]);
       });
-
-      if (this.selectedRoute.orders.length > 0) {
-        map.fitBounds(bounds, { padding: 50 });
-      }
+      map.fitBounds(bounds, { padding: 50 });
     }
   }
 };
 </script>
 
 <style scoped>
-/* ESTILOS GLOBALES */
+/* ============= GLOBAL LAYOUT ============= */
 .assign-page {
-  width: 100%;
   height: 100vh;
+  width: 100%;
   overflow: hidden;
+  padding: 24px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding-bottom: 5vh;
-  padding: 20px;
-  box-sizing: border-box;
-  background: transparent;
+  color: #f5e9c6;
+  background-color: transparent;
 }
 
+/* Header */
 .page-header {
   flex-shrink: 0;
   margin-bottom: 20px;
@@ -427,69 +552,130 @@ export default {
 .page-title { margin: 0; font-size: 1.8rem; color: #d4af37; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8); }
 .subtitle { margin: 5px 0 0; font-size: 0.9rem; color: #888; }
 
-/* PANEL PRINCIPAL */
+/* PANEL PRINCIPAL (NO SCROLL INTERNO GLOBAL, SOLO FLEXBOX) */
 .main-panel {
+  flex: 1; /* Ocupa el espacio restante */
   width: 100%;
-  max-width: 1150px;
-  height: auto;
-  max-height: 85vh;
-  min-height: 600px;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* CRÍTICO para que el contenido no desborde */
+}
+
+/* ============= SPLIT VIEW CORREGIDO ============= */
+.split-layout {
+  display: flex;
+  gap: 24px;
+  flex: 1; /* Ocupa todo el alto del main-panel */
+  min-height: 0; /* Permite que los hijos tengan scroll */
+}
+
+.panel-section {
+  flex: 1; /* Ambas columnas 50% */
   display: flex;
   flex-direction: column;
   background: rgba(15, 12, 8, 0.96);
   border: 1px solid rgba(212, 175, 55, 0.25);
   border-radius: 16px;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
-  padding: 25px;
+  height: 90%;
+  padding: 0; /* Padding interno manejado por scroll-container */
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  overflow: hidden; /* Corta contenido sobrante */
+  border-bottom: 2px solid rgba(212, 175, 55, 0.4); /* Borde inferior visible */
 }
 
-.list-header-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1);
-  margin-bottom: 15px;
+.panel-header {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+  background: rgba(255, 255, 255, 0.02);
 }
-.panel-subtitle { margin: 0; color: #d4af37; font-size: 1.3rem; }
-.badge { background: rgba(212, 175, 55, 0.15); color: #d4af37; padding: 4px 10px; border-radius: 12px; font-weight: bold; }
 
-.scroll-area { flex: 1; overflow-y: auto; padding-right: 5px; }
+.panel-title {
+  font-size: 1.2rem;
+  color: #d4af37;
+  margin: 0;
+}
 
-/* CARDS DE RUTA */
-.cards-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;
+.badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+.badge.warning { background: rgba(255, 193, 7, 0.15); color: #ffc107; border: 1px solid #ffc107; }
+.badge.success { background: rgba(76, 175, 80, 0.15); color: #66bb6a; border: 1px solid #66bb6a; }
+
+/* SCROLL AREA CORREGIDA */
+.scroll-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.scroll-container::-webkit-scrollbar { width: 6px; }
+.scroll-container::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); border-radius: 3px; }
+.scroll-container::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.3); border-radius: 3px; }
+
+/* LISTA DE TARJETAS */
+.cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
 .route-card {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(212, 175, 55, 0.2);
-  border-radius: 12px;
-  padding: 20px;
-  display: flex; flex-direction: column; gap: 15px;
+  border-radius: 10px;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   transition: transform 0.2s;
 }
-.route-card:hover { transform: translateY(-3px); border-color: #d4af37; background: rgba(255, 255, 255, 0.05); }
 
-.route-header { display: flex; align-items: center; gap: 15px; }
-.route-icon { font-size: 2rem; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 50%; }
-.route-info { flex: 1; }
-.route-name { margin: 0; color: #fff; font-size: 1.1rem; }
-.route-meta { margin: 5px 0 0; color: #888; font-size: 0.9rem; }
+.route-card:hover { 
+  transform: translateY(-2px); 
+  background: rgba(255, 255, 255, 0.06); 
+}
+
+.route-card.assigned { border-color: #66bb6a; }
+.route-card.assigned:hover { background: rgba(76, 175, 80, 0.05); }
+
+.route-header { display: flex; align-items: center; gap: 12px; }
+.route-icon { font-size: 1.8rem; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 50%; }
+.success-icon { color: #66bb6a; }
+
+.route-info { flex: 1; overflow: hidden; }
+.route-name { margin: 0; color: #fff; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.route-meta { margin: 4px 0 0; color: #888; font-size: 0.85rem; }
+.route-submeta { margin: 2px 0 0; color: #666; font-size: 0.8rem; }
 
 .route-actions {
-  display: flex; gap: 10px; margin-top: auto;
+  display: flex; gap: 8px; margin-top: auto;
 }
 .btn-icon-action {
-  background: rgba(255,255,255,0.1); border: none; border-radius: 8px;
-  width: 40px; height: 40px; cursor: pointer; font-size: 1.2rem; transition: 0.2s;
+  background: rgba(255,255,255,0.1); border: none; border-radius: 6px;
+  width: 36px; height: 36px; cursor: pointer; font-size: 1.1rem; transition: 0.2s; color: #ccc;
 }
-.btn-icon-action:hover { background: rgba(255,255,255,0.2); }
-.btn-icon-action.edit:hover { background: rgba(212, 175, 55, 0.2); color: #d4af37; }
+.btn-icon-action:hover { background: rgba(255,255,255,0.2); color: #fff; }
+.btn-icon-action.edit:hover { color: #d4af37; }
 
 .btn-main-assign {
-  flex: 1; background: #d4af37; border: none; border-radius: 8px;
-  color: #000; font-weight: bold; cursor: pointer; transition: 0.2s;
+  flex: 1; background: #d4af37; border: none; border-radius: 6px;
+  color: #000; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 0.9rem;
 }
 .btn-main-assign:hover { background: #ffdb60; }
+
+.btn-assigned-status {
+  flex: 1; background: rgba(76, 175, 80, 0.2); border: 1px solid #66bb6a; color: #66bb6a;
+  border-radius: 6px; font-weight: bold; cursor: default; font-size: 0.85rem; padding: 8px;
+}
 
 /* MODALES */
 .modal-overlay {
@@ -502,6 +688,7 @@ export default {
   border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; max-height: 90vh;
 }
 .large-card { max-width: 800px; }
+.small-modal { max-width: 380px; }
 
 .modal-header {
   padding: 15px 20px; border-bottom: 1px solid rgba(255,255,255,0.1);
@@ -515,6 +702,10 @@ export default {
 
 /* MAPA EN MODAL */
 .map-wrapper { width: 100%; height: 300px; position: relative; }
+.map-overlay-info {
+  position: absolute; top: 10px; left: 10px;
+  background: rgba(0,0,0,0.7); color: #d4af37; padding: 5px 10px; border-radius: 6px; font-size: 0.8rem;
+}
 .small-map { height: 200px; }
 .map-container { width: 100%; height: 100%; }
 
@@ -538,6 +729,7 @@ export default {
   border-radius: 6px; padding: 5px 10px; cursor: pointer;
 }
 .btn-remove-point:hover { background: #d44; color: #fff; }
+.btn-remove-point.disabled { opacity: 0.3; cursor: not-allowed; border-color: #666; color: #666; }
 
 /* MODAL SELECCION CONDUCTOR */
 .driver-selection-body { padding: 20px; background: #111; }
@@ -567,15 +759,28 @@ export default {
 .btn-save { background: #d4af37; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
 .btn-save:hover { background: #ffdb60; }
 
-/* SPINNER & GLOBAL LOADER */
+/* MENSAJES EXITOSOS */
+.success-body { padding: 30px 20px; display: flex; flex-direction: column; align-items: center; }
+.success-icon { font-size: 3rem; margin-bottom: 15px; }
+.success-title { color: #d4af37; margin: 0 0 10px 0; font-size: 1.4rem; }
+.success-text { font-size: 1rem; margin: 5px 0 20px 0; color: #ccc; }
+.btn-confirm-modal { background: #d4af37; border: none; color: #000; padding: 8px 24px; border-radius: 6px; font-weight: 700; cursor: pointer; width: 100%; }
+.btn-confirm-modal:hover { background: #ffdb60; }
+
+/* SPINNER */
 .spinner { width: 30px; height: 30px; border: 3px solid #d4af37; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto; }
-.global-loader {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; color: #d4af37;
-}
+.global-loader { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 3000; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #d4af37; }
 .spinner.large { width: 50px; height: 50px; border-width: 4px; margin-bottom: 15px; }
+.state-msg { text-align: center; color: #666; padding: 20px; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* MEDIA QUERIES */
+@media (max-width: 900px) {
+  .split-layout { flex-direction: column; height: auto; }
+  .panel-section { height: 500px; }
+  .assign-page { height: auto; overflow: auto; }
+}
 
 /* CLASE GLOBAL PARA MARCADOR MAPBOX (NO SCOPED) */
 </style>
