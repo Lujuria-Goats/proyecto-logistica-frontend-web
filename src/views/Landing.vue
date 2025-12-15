@@ -1,6 +1,9 @@
 <template>
   <div class="landing">
-    <!-- Fondo animado -->
+    <!-- 🎆 FONDO ANIMADO DEL CODEPEN -->
+    <canvas id="bgCanvas"></canvas>
+
+    <!-- Glow opcional (tu fondo original) -->
     <div class="background-glow"></div>
 
     <!-- CONTENEDOR GENERAL -->
@@ -14,10 +17,10 @@
             <img src="../assets/logo.png" alt="Apex Vision Logo" class="logo-img" />
           </div>
 
-          <h1 class="title">Apex Vision</h1>
-          <p class="subtitle">Lo que no se ve, no se entrega.</p>
+          <h1 class="title text-white">Apex Vision</h1>
+          <p class="subtitle text-white">Lo que no se ve, no se entrega.</p>
 
-          <p class="description">
+          <p class="description text-white">
             Plataforma inteligente de logística diseñada para optimizar rutas, 
             validar entregas con IA y conectar despachadores y conductores 
             en tiempo real.
@@ -62,6 +65,65 @@
 <script>
 export default {
   name: "LandingPage",
+
+  mounted() {
+    // === ANIMACIÓN DEL CODEPEN ===
+    const canvas = document.getElementById("bgCanvas");
+    const ctx = canvas.getContext("2d");
+
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = window.innerHeight);
+
+    const particles = [];
+    const particleCount = 70;
+
+    class Particle {
+      constructor() {
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
+        this.vx = (Math.random() - 0.5) * 0.6;
+        this.vy = (Math.random() - 0.5) * 0.6;
+        this.radius = Math.random() * 2 + 1;
+      }
+
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+
+        if (this.x < 0 || this.x > width) this.vx *= -1;
+        if (this.y < 0 || this.y > height) this.vy *= -1;
+      }
+
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255,255,255,0.7)";
+        ctx.fill();
+      }
+    }
+
+    for (let i = 0; i < particleCount; i++) {
+      particles.push(new Particle());
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, width, height);
+
+      particles.forEach((p) => {
+        p.update();
+        p.draw();
+      });
+
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+
+    window.addEventListener("resize", () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    });
+  },
 };
 </script>
 
@@ -89,7 +151,18 @@ export default {
   align-items: center;
 }
 
-/* ----------- ANIMACIÓN DE FONDO ----------- */
+/* === CANVAS DEL FONDO ANIMADO === */
+#bgCanvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  background: #0a0a0a;
+}
+
+/* ----------- ANIMACIÓN DE GLOW TUYA ----------- */
 .background-glow {
   position: absolute;
   width: 700px;
@@ -97,6 +170,7 @@ export default {
   background: radial-gradient(circle, rgba(212,175,55,0.18), transparent 70%);
   filter: blur(60px);
   animation: moveGlow 12s ease-in-out infinite alternate;
+  z-index: 1;
 }
 
 @keyframes moveGlow {
@@ -110,7 +184,6 @@ export default {
   gap: 35px;
   z-index: 3;
   padding: 20px;
-
   height: 100%;
   justify-content: center;
   align-items: center;
