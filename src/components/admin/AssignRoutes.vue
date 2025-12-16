@@ -49,6 +49,12 @@
                   <button class="btn-icon-action edit" @click="openEditModal(route)" title="Editar Orden">
                     ✏️
                   </button>
+                  
+                  <!-- BOTÓN DE ELIMINAR (AHORA ABRE MODAL) -->
+                  <button class="btn-icon-action delete" @click="openDeleteModal(route)" title="Eliminar Ruta">
+                    🗑️
+                  </button>
+
                   <button class="btn-main-assign" @click="openAssignModal(route)">
                     👤 Asignar
                   </button>
@@ -88,7 +94,7 @@
                   </div>
                 </div>
 
-                <!-- BARRA DE PROGRESO (NUEVO) -->
+                <!-- BARRA DE PROGRESO -->
                 <div class="progress-section">
                   <div class="progress-labels">
                     <span class="p-label">Progreso</span>
@@ -329,6 +335,32 @@
       </transition>
     </teleport>
 
+    <!-- ================================================= -->
+    <!-- MODAL 5: CONFIRMAR ELIMINACIÓN                    -->
+    <!-- ================================================= -->
+    <teleport to="body">
+      <transition name="pop-in">
+        <div v-if="showDeleteConfirmModal" class="modal-overlay" @click.self="closeDeleteModal">
+          <div class="modal-container">
+            <div class="modal-card small-modal text-center glass-effect p-4 error-theme">
+              <div class="modal-body success-body">
+                <div class="status-icon">🗑️</div>
+                <h2 class="modal-title success-title">Eliminar Ruta</h2>
+                <p class="success-text">
+                  ¿Seguro que quieres eliminar esta ruta: <strong>{{ routeToDelete?.name }}</strong>?
+                  <br><span style="font-size: 0.85em; opacity: 0.7;">Esta acción no se puede deshacer.</span>
+                </p>
+                <div class="actions-footer" style="justify-content: center; margin-top: 20px;">
+                  <button class="btn-cancel-modal" @click="closeDeleteModal">Cancelar</button>
+                  <button class="btn-confirm-modal error" @click="executeDeleteRoute">Eliminar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </teleport>
+
     <!-- OVERLAY CARGA -->
     <transition name="fade">
       <div v-if="isProcessing" class="global-loader">
@@ -369,6 +401,10 @@ export default {
       showEditModal: false,
       showAssignModal: false,
       showOrderEditModal: false,
+      
+      // Modal Eliminación
+      showDeleteConfirmModal: false,
+      routeToDelete: null,
 
       // Edición Pedido
       currentOrderEdit: null,
@@ -487,7 +523,7 @@ export default {
       finally { this.isLoadingDrivers = false; }
     },
 
-    // --- CÁLCULO DE PROGRESO (Front-End Filter Logic) ---
+    // --- CÁLCULO DE PROGRESO ---
     getRouteProgress(route) {
       if (!route || !route.orderIds || route.orderIds.length === 0) {
         return { completed: 0, total: 0, percent: 0 };
@@ -637,7 +673,7 @@ export default {
       } catch (e) { this.openMessage("Error", e.message, "error"); } finally { this.isSavingOrder = false; }
     },
 
-    // --- ACCIONES ---
+    // --- ACCIONES DE RUTA ---
     async saveRouteOrder() {
       if (!this.selectedRoute) return;
       this.isProcessing = true;
@@ -651,6 +687,52 @@ export default {
         this.openMessage("Orden Actualizado", "Ruta guardada correctamente.", "success");
         this.closeModals(); this.fetchRoutes();
       } catch (e) { this.openMessage("Error", e.message, "error"); } finally { this.isProcessing = false; }
+    },
+
+    // --- LÓGICA DE ELIMINACIÓN DE RUTA ---
+    
+    // Paso 1: Abrir Modal
+    openDeleteModal(route) {
+      this.routeToDelete = route;
+      this.showDeleteConfirmModal = true;
+    },
+
+    // Paso 2: Cerrar Modal
+    closeDeleteModal() {
+      this.showDeleteConfirmModal = false;
+      this.routeToDelete = null;
+    },
+
+    // Paso 3: Ejecutar Eliminación (llamada a API)
+    async executeDeleteRoute() {
+      if (!this.routeToDelete) return;
+      
+      const route = this.routeToDelete;
+      this.closeDeleteModal(); // Cerramos modal de confirmación
+      this.isProcessing = true; // Mostramos loader global
+      
+      const token = this.getCleanToken();
+      try {
+        const res = await fetch(`${this.baseUrl}/api/Routes/saved/${route.id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+           const text = await res.text();
+           throw new Error(text || 'Error al eliminar la ruta');
+        }
+
+        // Actualizar lista local eliminando la ruta
+        this.unassignedRoutes = this.unassignedRoutes.filter(r => r.id !== route.id);
+        this.openMessage("Ruta Eliminada", "La ruta ha sido eliminada exitosamente.", "success");
+
+      } catch (e) {
+        console.error(e);
+        this.openMessage("Error", "No se pudo eliminar la ruta: " + e.message, "error");
+      } finally {
+        this.isProcessing = false;
+      }
     },
 
     async assignRouteToDriver(driver) {
@@ -957,6 +1039,12 @@ export default {
 
 .btn-icon-action.edit:hover {
   color: #d4af37;
+}
+
+/* ESTILO PARA EL BOTÓN DE ELIMINAR */
+.btn-icon-action.delete:hover {
+  background: rgba(255, 80, 80, 0.2);
+  color: #ff5050;
 }
 
 .btn-main-assign {

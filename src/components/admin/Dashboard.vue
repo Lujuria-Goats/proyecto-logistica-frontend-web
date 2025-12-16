@@ -41,41 +41,34 @@
           </div>
         </div>
 
-        <!-- CARD 2: EN CURSO -->
+        <!-- CARD 2: RUTAS EN CURSO (AQUÍ ESTÁ EL CAMBIO) -->
         <div class="stat-card">
           <div class="card-icon">🚀</div>
           <div class="card-info">
-            <h3>En Curso</h3>
-            <p class="number">{{ stats.orders.inTransit }}</p>
-            <span class="trend">
-              {{ stats.routes.active }} rutas activas
+            <h3>Rutas en Curso</h3>
+            
+            <!-- Se muestra stats.routes.active según tu JSON -->
+            <p class="number">{{ stats.routes.active }}</p>
+            
+            <span class="trend green">
+              Activas actualmente
             </span>
           </div>
         </div>
 
-        <!-- CARD 3: EFECTIVIDAD -->
-        <div class="stat-card">
-          <div class="card-icon">🎯</div>
-          <div class="card-info">
-            <h3>Efectividad Hoy</h3>
-            <p class="number">{{ efficiencyPercentage }}%</p>
-            <span class="trend" :class="efficiencyClass">
-              {{ stats.orders.completedToday }} entregados
-            </span>
-          </div>
-        </div>
 
         <!-- CARD 4: CONDUCTORES -->
         <div class="stat-card">
           <div class="card-icon">🚚</div>
           <div class="card-info">
             <h3>Conductores</h3>
-            <p class="number">{{ stats.drivers.activeToday }} <span class="small">/ {{ stats.drivers.totalLinked }}</span></p>
-            <span class="trend green">
-              Activos hoy
+            <p class="number">{{ stats.drivers.totalLinked }}</p>
+            <span class="trend neutral">
+              Total vinculados
             </span>
           </div>
         </div>
+
       </section>
 
       <!-- SECCIÓN DE ACTIVIDAD -->
@@ -89,7 +82,8 @@
         <div v-else class="activity-list">
           <div v-for="(item, index) in recentActivity" :key="index" class="activity-item">
             <div class="activity-icon">
-              {{ item.type === 'Entrega' ? '📦' : '🗺️' }}
+              <!-- Icono dinámico según el tipo que viene en el JSON -->
+              {{ item.type === 'Entrega' ? '📦' : (item.type === 'Ruta' ? '🗺️' : '🔔') }}
             </div>
             <div class="activity-content">
               <p class="act-message">{{ item.message }}</p>
@@ -114,17 +108,31 @@ export default {
       isLoading: true,
       error: null,
       
-      // Estructura inicial para evitar errores de renderizado antes de cargar
+      // Estructura inicial idéntica a la respuesta esperada del JSON
       stats: {
-        orders: { total: 0, today: 0, pending: 0, inTransit: 0, completedToday: 0, canceled: 0 },
-        drivers: { totalLinked: 0, activeToday: 0 },
-        routes: { total: 0, active: 0 }
+        orders: { 
+          total: 0, 
+          today: 0, 
+          pending: 0, 
+          inTransit: 0, 
+          completedToday: 0, 
+          canceled: 0 
+        },
+        drivers: { 
+          totalLinked: 0, 
+          activeToday: 0 
+        },
+        routes: { 
+          total: 0, 
+          active: 0 // Este es el dato clave para la tarjeta 2
+        }
       },
       recentActivity: []
     };
   },
   computed: {
     efficiencyPercentage() {
+      // Cálculo de efectividad basado en pedidos de hoy
       if (this.stats.orders.today === 0) return 0;
       const pct = (this.stats.orders.completedToday / this.stats.orders.today) * 100;
       return pct.toFixed(0);
@@ -155,11 +163,11 @@ export default {
       try {
         const token = this.getCleanToken();
         if (!token) {
-          // Si no hay token, redirigir al login (ajusta la ruta según tu router)
           this.$router.push('/login'); 
           return;
         }
 
+        // Consumo del endpoint especificado
         const res = await fetch(`${this.baseUrl}/api/Dashboard/admin-summary`, {
           method: 'GET',
           headers: {
@@ -180,7 +188,7 @@ export default {
 
         const data = await res.json();
         
-        // Actualizar estado
+        // Mapeo directo de la respuesta JSON a las variables locales
         this.stats = data.stats;
         this.recentActivity = data.recentActivity || [];
 
@@ -195,14 +203,13 @@ export default {
     formatDate(dateString) {
       if (!dateString) return '';
       const date = new Date(dateString);
-      // Formato relativo simple o hora local
       const now = new Date();
       const diffMin = Math.floor((now - date) / 60000);
 
       if (diffMin < 1) return "Hace un momento";
       if (diffMin < 60) return `Hace ${diffMin} min`;
       
-      // Si fue hace más de una hora, mostrar hora local
+      // Muestra hora local si pasó más de una hora
       return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
   }
