@@ -58,7 +58,7 @@
           </div>
         </div>
 
-        <!-- ================= SECCIÓN DERECHA: RUTAS ASIGNADAS ================= -->
+        <!-- ================= SECCIÓN DERECHA: RUTAS ASIGNADAS (CON PROGRESO) ================= -->
         <div class="panel-section right-panel">
           <header class="panel-header">
             <h2 class="panel-title">✅ Rutas Asignadas</h2>
@@ -88,13 +88,24 @@
                   </div>
                 </div>
 
+                <!-- BARRA DE PROGRESO (NUEVO) -->
+                <div class="progress-section">
+                  <div class="progress-labels">
+                    <span class="p-label">Progreso</span>
+                    <span class="p-val">{{ getRouteProgress(route).completed }}/{{ getRouteProgress(route).total }} Entregas</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill" :style="{ width: getRouteProgress(route).percent + '%' }"></div>
+                  </div>
+                </div>
+
                 <div class="route-actions">
                   <button class="btn-icon-action info" @click="openInfoModal(route)" title="Ver Información">
                     ℹ️
                   </button>
-                  <!-- Botón informativo -->
-                  <button class="btn-assigned-status" disabled>
-                    En Curso
+                  <!-- Estado Visual -->
+                  <button class="btn-assigned-status" :class="{ 'completed': getRouteProgress(route).percent === 100 }" disabled>
+                    {{ getRouteProgress(route).percent === 100 ? 'Completado' : 'En Curso' }}
                   </button>
                 </div>
               </div>
@@ -125,11 +136,18 @@
                   </div>
                 </div>
                 <div class="points-list">
-                  <h3 class="section-title">Puntos de Entrega (Ordenados)</h3>
+                  <h3 class="section-title">Progreso de Pedidos ({{ getRouteProgress(selectedRoute).percent }}%)</h3>
                   <div v-for="(point, index) in selectedRouteDetails" :key="point.id" class="point-item">
                     <div class="point-index">{{ index + 1 }}</div>
                     <div class="point-data">
-                      <p class="p-addr">📍 {{ point.address }}</p>
+                      <div class="p-top-row">
+                        <p class="p-addr">📍 {{ point.address }}</p>
+                        <!-- Badge de estado individual -->
+                        <span class="status-pill"
+                          :class="point.status === 'Completed' ? 'st-completed' : 'st-pending'">
+                          {{ point.status === 'Completed' ? 'Completado' : 'Pendiente' }}
+                        </span>
+                      </div>
                       <p class="p-desc">📦 {{ point.description }}</p>
                     </div>
                   </div>
@@ -337,7 +355,7 @@ export default {
       unassignedRoutes: [],
       assignedRoutes: [],
       drivers: [],
-      ordersMap: new Map(),
+      ordersMap: new Map(), // Memoria global de órdenes
 
       selectedRoute: null,
       selectedRouteDetails: [],
@@ -376,7 +394,9 @@ export default {
     };
   },
   async mounted() {
+    // 1. Cargar todas las órdenes (Global)
     await this.fetchAllOrders();
+    // 2. Cargar rutas y conductores
     this.fetchRoutes();
     this.fetchDrivers();
   },
@@ -402,16 +422,20 @@ export default {
       try {
         const token = this.getCleanToken();
         if (!token) return;
+        // El Admin consume GET /api/Orders (lista global)
         const res = await fetch(`${this.baseUrl}/api/Orders`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (res.ok) {
           const data = await res.json();
+          // Almacenamos en memoria para filtrar localmente
           data.forEach(order => {
             const info = {
               id: order.id || order.Id,
               address: order.address || order.Address,
               description: order.description || order.Description,
               lat: order.latitude || order.Latitude,
-              lng: order.longitude || order.Longitude
+              lng: order.longitude || order.Longitude,
+              driverId: order.driverId || order.DriverId, // Clave para el filtrado
+              status: order.status || order.Status || 'Pending' // Pending | Completed
             };
             this.ordersMap.set(info.id, info);
           });
@@ -461,6 +485,28 @@ export default {
         }
       } catch (e) { console.error(e); }
       finally { this.isLoadingDrivers = false; }
+    },
+
+    // --- CÁLCULO DE PROGRESO (Front-End Filter Logic) ---
+    getRouteProgress(route) {
+      if (!route || !route.orderIds || route.orderIds.length === 0) {
+        return { completed: 0, total: 0, percent: 0 };
+      }
+      
+      const total = route.orderIds.length;
+      let completed = 0;
+
+      // Filtramos en memoria usando la lista global de ordersMap
+      route.orderIds.forEach(orderId => {
+        const order = this.ordersMap.get(orderId);
+        // Si existe y el estado es 'Completed', sumamos
+        if (order && order.status === 'Completed') {
+          completed++;
+        }
+      });
+
+      const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+      return { completed, total, percent };
     },
 
     // --- MODALES ---
@@ -569,10 +615,22 @@ export default {
       try {
         const res = await fetch(`${this.baseUrl}/api/Orders/${orderId}`, { method: 'PUT', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!res.ok) throw new Error("No se pudo actualizar el pedido.");
-        const updatedInfo = { id: orderId, address: payload.address, description: payload.description, lat: payload.latitude, lng: payload.longitude };
+        
+        const oldInfo = this.ordersMap.get(orderId);
+        const updatedInfo = { 
+          id: orderId, 
+          address: payload.address, 
+          description: payload.description, 
+          lat: payload.latitude, 
+          lng: payload.longitude,
+          status: oldInfo ? oldInfo.status : 'Pending', // Mantener status original
+          driverId: oldInfo ? oldInfo.driverId : null
+        };
+        
         this.ordersMap.set(orderId, updatedInfo);
         const index = this.selectedRouteDetails.findIndex(o => o.id === orderId);
         if (index !== -1) this.selectedRouteDetails[index] = updatedInfo;
+        
         if (this.mapInstance) this.renderMarkers(this.mapInstance);
         this.closeOrderEditor();
         this.openMessage("Pedido Actualizado", "La información se ha guardado correctamente.", "success");
@@ -597,12 +655,9 @@ export default {
 
     async assignRouteToDriver(driver) {
       if (!this.selectedRoute) return;
-
       this.isProcessing = true;
       const token = this.getCleanToken();
-
       try {
-        // --- VALIDACIÓN DE ERROR EN ASIGNACIÓN ---
         const cleanPhone = String(driver.phone).replace(/[^0-9+]/g, '');
         const routeId = this.selectedRoute.id;
 
@@ -614,7 +669,6 @@ export default {
 
         if (!res.ok) {
           const txt = await res.text();
-          // Capturamos el error y mostramos modal ROJO
           throw new Error(txt || `Error ${res.status}: No se pudo asignar la ruta.`);
         }
 
@@ -624,7 +678,6 @@ export default {
 
       } catch (e) {
         console.error(e);
-        // Modal de ERROR con estilo diferente
         this.openMessage("⚠️ Error de Asignación", e.message, "error");
       } finally {
         this.isProcessing = false;
@@ -847,6 +900,38 @@ export default {
   font-size: 0.8rem;
 }
 
+/* PROGRESS BAR */
+.progress-section {
+  margin: 5px 0 0 0;
+}
+
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 0.75rem;
+  color: #ccc;
+}
+
+.p-val {
+  font-weight: bold;
+  color: #66bb6a;
+}
+
+.progress-track {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #66bb6a, #4caf50);
+  transition: width 0.4s ease;
+}
+
 .route-actions {
   display: flex;
   gap: 8px;
@@ -901,6 +986,11 @@ export default {
   cursor: default;
   font-size: 0.85rem;
   padding: 8px;
+}
+.btn-assigned-status.completed {
+  background: #66bb6a;
+  color: #000;
+  border: none;
 }
 
 /* MODALES GLASSMORPHISM */
@@ -1209,13 +1299,45 @@ export default {
 
 .point-data {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.p-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
 }
 
 .p-addr {
-  margin: 0 0 4px;
+  margin: 0;
   color: #e0e0e0;
   font-weight: 500;
   font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.status-pill {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: bold;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.st-pending {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  border: 1px solid rgba(255, 193, 7, 0.5);
+}
+
+.st-completed {
+  background: rgba(76, 175, 80, 0.2);
+  color: #66bb6a;
+  border: 1px solid rgba(76, 175, 80, 0.5);
 }
 
 .p-desc {
