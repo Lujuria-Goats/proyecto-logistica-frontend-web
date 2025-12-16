@@ -97,8 +97,17 @@
               <label>Dirección de Entrega *</label>
               
               <div class="input-wrapper">
-                <input type="text" v-model="searchQuery" class="input-field" placeholder="Buscar dirección..."
-                  @input="onSearchInput" required>
+                <!-- DETECCIÓN DE FOCO PARA ALERTA DE 1RA UBICACIÓN -->
+                <input 
+                  type="text" 
+                  v-model="searchQuery" 
+                  class="input-field" 
+                  placeholder="Buscar dirección..."
+                  @input="onSearchInput" 
+                  @focus="checkFirstLocationAlert"
+                  ref="searchInput"
+                  required
+                >
                 <div v-if="isSearching" class="input-loader"></div>
 
                 <ul v-if="suggestions.length > 0" class="suggestions-list">
@@ -114,10 +123,11 @@
               </div>
             </div>
 
-            <!-- MAPA INTEGRADO (NUEVO) -->
+            <!-- MAPA INTEGRADO -->
             <div class="form-group map-group">
                <label>Ubicación (Click en el mapa para ajustar)</label>
-               <div class="inline-map-wrapper">
+               <!-- DETECCIÓN DE CLICK PARA ALERTA DE 1RA UBICACIÓN -->
+               <div class="inline-map-wrapper" @click.capture="checkFirstLocationAlert">
                   <div ref="inlineMapContainer" class="map-container"></div>
                </div>
             </div>
@@ -159,10 +169,10 @@
       </div>
     </div>
 
-    <!-- MODALES -->
+    <!-- MODALES (TELEPORT) -->
     <teleport to="body">
       
-      <!-- 1. INFO MODAL -->
+      <!-- 1. INFO MODAL (Ver Detalles) -->
       <transition name="fade">
         <div v-if="showInfoModal" class="modal-overlay" @click.self="closeInfoModal">
           <div class="modal-container">
@@ -188,7 +198,7 @@
         </div>
       </transition>
 
-      <!-- 3. RUTA GENERADA MODAL -->
+      <!-- 2. RUTA GENERADA MODAL (Éxito) -->
       <transition name="fade">
         <div v-if="showRouteModal" class="modal-overlay" @click.self="showRouteModal = false">
           <div class="modal-container">
@@ -200,6 +210,53 @@
                 <p class="success-subtext">Nombre: <strong>{{ routeName }}</strong></p>
                 <p class="success-subtext">Distancia Total: <strong>{{ routeDistance.toFixed(2) }} km</strong></p>
                 <button class="btn-confirm-modal full-width" @click="showRouteModal = false">Entendido</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+
+      <!-- 3. MODAL ADVERTENCIA PRIMERA UBICACIÓN -->
+      <transition name="fade">
+        <div v-if="showStartLocationModal" class="modal-overlay">
+          <div class="modal-container">
+            <div class="modal-card small-modal text-center">
+              <header class="modal-header" style="justify-content: center;">
+                 <h2 class="modal-title">⚠️ Atención</h2>
+              </header>
+              <div class="modal-body success-body">
+                <div class="success-icon" style="font-size: 2.5rem;">🚚</div>
+                <p class="success-text" style="font-weight: bold; margin-bottom: 15px;">
+                  Punto de Partida
+                </p>
+                <p class="success-subtext" style="color: #ccc; font-size: 1rem; line-height: 1.5;">
+                  La primera ubicación que se ingrese es la ubicación de donde está el conductor.
+                </p>
+                <button class="btn-confirm-modal full-width" @click="confirmStartLocation">
+                  Aceptar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+
+      <!-- 4. MODAL ALERTA GENÉRICA (REEMPLAZO DE ALERT) -->
+      <transition name="fade">
+        <div v-if="showGenericModal" class="modal-overlay" @click.self="showGenericModal = false">
+          <div class="modal-container">
+            <div class="modal-card small-modal text-center">
+              <header class="modal-header" style="justify-content: center;">
+                 <h2 class="modal-title">{{ genericModalData.title }}</h2>
+              </header>
+              <div class="modal-body success-body">
+                <div class="success-icon" style="font-size: 2.5rem;">{{ genericModalData.icon }}</div>
+                <p class="success-text" style="font-weight: bold; margin-bottom: 15px;">
+                  {{ genericModalData.message }}
+                </p>
+                <button class="btn-confirm-modal full-width" @click="showGenericModal = false">
+                  Aceptar
+                </button>
               </div>
             </div>
           </div>
@@ -246,19 +303,46 @@ export default {
       inlineMapInstance: null,
       inlineMarker: null,
 
-      // Modales
+      // Modales y Alertas
       showInfoModal: false,
       selectedOrder: null,
       infoMapInstance: null,
       showRouteModal: false,
-      routeDistance: 0
+      routeDistance: 0,
+      
+      // Alerta primera ubicación
+      showStartLocationModal: false,
+      startLocationAlertShown: false,
+
+      // Alerta Genérica (Reemplazo de alert())
+      showGenericModal: false,
+      genericModalData: {
+        title: "Atención",
+        message: "",
+        icon: "⚠️"
+      }
     };
   },
+  watch: {
+    orders: {
+        handler(newVal) {
+            if (newVal.length === 0) {
+                this.startLocationAlertShown = false;
+            }
+        },
+        deep: true
+    }
+  },
   mounted() {
-    // Inicializar el mapa del formulario al cargar
     this.initInlineMap();
   },
   methods: {
+    // --- 🚨 HELPER PARA MOSTRAR ALERTAS EN MODAL ---
+    showAlert(title, message, icon = "⚠️") {
+      this.genericModalData = { title, message, icon };
+      this.showGenericModal = true;
+    },
+
     // --- 🔑 UTILS TOKEN ---
     getCleanToken() {
       let token = localStorage.getItem('token');
@@ -287,10 +371,25 @@ export default {
       }
     },
 
+    // --- LÓGICA DE ALERTA 1RA UBICACIÓN ---
+    checkFirstLocationAlert() {
+      if (this.orders.length === 0 && !this.startLocationAlertShown) {
+         if (this.$refs.searchInput) {
+            this.$refs.searchInput.blur();
+         }
+         this.showStartLocationModal = true;
+         this.startLocationAlertShown = true;
+      }
+    },
+
+    confirmStartLocation() {
+      this.showStartLocationModal = false;
+    },
+
     // --- MAPA INTEGRADO (INLINE) ---
     initInlineMap() {
       mapboxgl.accessToken = this.mapboxAccessToken;
-      const startCenter = [-75.5658, 6.2476]; // Medellín por defecto
+      const startCenter = [-75.5658, 6.2476];
 
       const map = new mapboxgl.Map({
         container: this.$refs.inlineMapContainer,
@@ -303,23 +402,19 @@ export default {
       
       map.on("load", () => {
         map.resize();
-        // Click en el mapa actualiza el formulario
         map.on("click", (e) => this.handleInlineMapClick(e.lngLat));
       });
     },
 
     async handleInlineMapClick(lngLat) {
+      this.checkFirstLocationAlert();
+
       const { lng, lat } = lngLat;
-      
-      // Actualizar Formulario
       this.form.lat = lat;
       this.form.lng = lng;
       this.searchQuery = "Cargando ubicación...";
-      
-      // Mover Marcador
       this.updateInlineMarker(lng, lat);
 
-      // Geocodificación Inversa
       try {
         const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${this.mapboxAccessToken}&types=address,poi`;
         const res = await fetch(url);
@@ -328,7 +423,7 @@ export default {
         if (data.features?.length > 0) {
           const placeName = data.features[0].place_name;
           this.form.address = placeName;
-          this.searchQuery = placeName.split(',')[0]; // Mostrar nombre corto en input
+          this.searchQuery = placeName.split(',')[0];
         } else {
           this.form.address = "Ubicación seleccionada en mapa";
           this.searchQuery = "Ubicación manual";
@@ -344,8 +439,6 @@ export default {
       this.inlineMarker = new mapboxgl.Marker({ color: "#d4af37", draggable: false })
         .setLngLat([lng, lat])
         .addTo(this.inlineMapInstance);
-        
-      // Centrar mapa suavemente
       this.inlineMapInstance.flyTo({ center: [lng, lat], zoom: 14 });
     },
 
@@ -355,7 +448,8 @@ export default {
         this.form.address = this.searchQuery;
       }
       if (!this.form.address || !this.form.description) {
-        return alert("⚠️ Faltan datos obligatorios.");
+        // REEMPLAZO DE ALERT
+        return this.showAlert("Datos Incompletos", "Faltan datos obligatorios (Dirección o Descripción).", "⚠️");
       }
 
       this.isSubmitting = true;
@@ -371,7 +465,6 @@ export default {
         const token = this.getCleanToken();
         if (!token) throw new Error("Sesión expirada");
 
-        // Guardar en BD para obtener ID real
         const res = await fetch(`${this.baseUrl}/api/Orders`, {
           method: 'POST',
           headers: {
@@ -389,11 +482,8 @@ export default {
         const responseData = await res.json();
         const realId = responseData.orderId || responseData.id || responseData.Id;
         
-        if (!realId) {
-          throw new Error("El pedido se creó pero no se recibió un ID válido.");
-        }
+        if (!realId) throw new Error("El pedido se creó pero no se recibió un ID válido.");
 
-        // Agregar a lista local VISUAL
         const mappedOrder = {
           id: realId, 
           address: payload.address,
@@ -408,7 +498,8 @@ export default {
 
       } catch (error) {
         console.error(error);
-        alert("⚠️ No se pudo agregar: " + error.message);
+        // REEMPLAZO DE ALERT
+        this.showAlert("Error al Agregar", "No se pudo agregar: " + error.message, "❌");
       } finally {
         this.isSubmitting = false;
       }
@@ -417,24 +508,22 @@ export default {
     resetForm() {
       this.form = { address: "", description: "", lat: 0, lng: 0, requirePhoto: false };
       this.searchQuery = "";
-      // Limpiar mapa
       if (this.inlineMarker) this.inlineMarker.remove();
       if (this.inlineMapInstance) this.inlineMapInstance.flyTo({ center: [-75.5658, 6.2476], zoom: 12 });
     },
 
-    // --- 2. GENERAR RUTA (CORREGIDO PARA EL BACKEND) ---
+    // --- 2. GENERAR RUTA ---
     async generateRoute() {
-      if (!this.routeName || !this.routeName.trim()) return alert("⚠️ Por favor, ingresa un nombre para la ruta.");
-      if (this.orders.length < 2) return alert("Agrega al menos 2 pedidos para crear una ruta.");
+      // REEMPLAZO DE ALERT
+      if (!this.routeName || !this.routeName.trim()) return this.showAlert("Falta Nombre", "Por favor, ingresa un nombre para la ruta.", "📝");
+      if (this.orders.length < 2) return this.showAlert("Pocas Paradas", "Agrega al menos 2 pedidos para crear una ruta.", "📉");
       
       this.isOptimizing = true;
       const token = this.getCleanToken();
       const fleetId = String(this.getUserIdFromToken(token));
 
-      // 1. Crear mapa temporal y payload para el Optimizador
       const tempMap = new Map();
       const locationsPayload = this.orders.map((order, index) => {
-        // Usamos un ID temporal simple (1, 2, 3...) para el algoritmo
         const simpleId = index + 1; 
         tempMap.set(String(simpleId), order); 
         return {
@@ -444,10 +533,7 @@ export default {
         };
       });
 
-      console.log("🚀 Enviando a optimizar:", { fleetId, locations: locationsPayload });
-
       try {
-        // --- PASO A: OPTIMIZAR (JAVA) ---
         const resOptimize = await fetch(`${this.baseUrl}/api/Optimizer/optimize`, {
           method: 'POST',
           headers: {
@@ -466,36 +552,23 @@ export default {
         const optimizedData = await resOptimize.json();
         this.routeDistance = optimizedData.totalDistanceKm || 0;
 
-        // --- PASO B: REORDENAR Y PREPARAR DATOS ---
-        
-        // 1. Obtener la secuencia y ordenarla por número de secuencia
         const sortedSequence = optimizedData.optimizedOrder || [];
         sortedSequence.sort((a, b) => a.sequenceNumber - b.sequenceNumber);
         
-        // 2. Reconstruir la lista visual (this.orders) en el NUEVO ORDEN
-        // Esto es vital: actualizamos la vista primero para que coincida con lo que se guarda
         const newOrderedOrders = [];
         sortedSequence.forEach(item => {
            const originalOrder = tempMap.get(String(item.id));
-           if (originalOrder) {
-             newOrderedOrders.push(originalOrder);
-           }
+           if (originalOrder) newOrderedOrders.push(originalOrder);
         });
 
-        // 3. Actualizar la variable reactiva
         this.orders = newOrderedOrders;
-
-        // 4. Extraer los IDs REALES de la lista ya ordenada
         const orderedRealIds = this.orders.map(o => o.id);
-
-        console.log("✅ IDs Reales ordenados para guardar:", orderedRealIds);
 
         if (orderedRealIds.length === 0) throw new Error("Error interno al procesar los IDs.");
 
-        // --- PASO C: GUARDAR RUTA (.NET) ---
         const savePayload = {
           routeName: this.routeName.trim(),
-          orderIds: orderedRealIds // Enviamos [ID_1, ID_2, ID_3] en el orden correcto
+          orderIds: orderedRealIds
         };
 
         const resSave = await fetch(`${this.baseUrl}/api/Routes/save`, {
@@ -509,18 +582,18 @@ export default {
         });
 
         if (!resSave.ok) {
-           if (resSave.status === 401) throw new Error("⛔ 401 NO AUTORIZADO.");
            const txt = await resSave.text();
            throw new Error("Error guardando ruta: " + txt);
         }
 
         this.orders = []; 
         this.routeName = ""; 
-        this.showRouteModal = true;
+        this.showRouteModal = true; // Modal de éxito específico
 
       } catch (error) {
         console.error("Error proceso ruta:", error);
-        alert("⚠️ " + error.message);
+        // REEMPLAZO DE ALERT
+        this.showAlert("Error en Ruta", error.message, "🚫");
       } finally {
         this.isOptimizing = false;
       }
@@ -539,7 +612,7 @@ export default {
       this.orders = this.orders.filter(o => o.id !== id);
     },
 
-    // --- UTILS MAPBOX (Autocomplete) ---
+    // --- UTILS MAPBOX ---
     onSearchInput() {
       if (!this.searchQuery) { this.form.address = ""; this.form.lat = 0; this.form.lng = 0; }
       clearTimeout(this.searchTimeout);
@@ -561,7 +634,6 @@ export default {
       this.form.lng = item.center[0];
       this.form.lat = item.center[1];
       this.suggestions = [];
-      // Sincronizar con el mapa inline
       this.updateInlineMarker(this.form.lng, this.form.lat);
     },
     getShortAddress(full) { return full.split(',').slice(1).join(',').trim(); },
@@ -594,9 +666,7 @@ export default {
 </script>
 
 <style scoped>
-/* =========================================
-   LAYOUT PRINCIPAL
-   ========================================= */
+/* LOS ESTILOS SE MANTIENEN IGUAL (Ya incluyen las clases para modales pequeños y grandes) */
 .orders-page {
   width: 100%;
   height: 100vh;
@@ -651,19 +721,15 @@ export default {
   display: flex;
   flex: 1;
   overflow: hidden;
-  /* El media query abajo controla la dirección en móviles */
 }
 
-/* =========================================
-   SECCIÓN IZQUIERDA (TABLA)
-   ========================================= */
 .table-section {
   flex: 3;
   display: flex;
   flex-direction: column;
   padding: 25px;
   border-right: 1px solid rgba(212, 175, 55, 0.1);
-  min-width: 0; /* Evita desbordamiento en flex */
+  min-width: 0;
 }
 
 .section-header {
@@ -695,7 +761,6 @@ export default {
   font-weight: bold;
 }
 
-/* Input Nombre de Ruta */
 .route-name-wrapper {
   margin-bottom: 15px;
 }
@@ -725,7 +790,6 @@ export default {
   font-style: italic;
 }
 
-/* Botón Optimizar */
 .btn-optimize {
   background: linear-gradient(90deg, #d4af37, #b8860b);
   border: none;
@@ -756,7 +820,6 @@ export default {
   border: 1px solid rgba(212, 175, 55, 0.1);
 }
 
-/* Tabla y Scroll */
 .table-scroll-area {
   flex: 1;
   overflow-y: auto;
@@ -815,7 +878,6 @@ export default {
   text-align: center;
 }
 
-/* Estados vacíos */
 .empty-cell {
   text-align: center;
   padding: 50px;
@@ -834,7 +896,6 @@ export default {
   opacity: 0.5;
 }
 
-/* Badges y botones de acción */
 .photo-badge {
   margin-right: 5px;
   cursor: help;
@@ -867,9 +928,6 @@ export default {
   border-color: #ff5050;
 }
 
-/* =========================================
-   SECCIÓN DERECHA (FORMULARIO)
-   ========================================= */
 .form-section {
   flex: 1.2;
   background: rgba(212, 175, 55, 0.02);
@@ -916,7 +974,6 @@ label {
   margin-left: 2px;
 }
 
-/* Inputs generales */
 .input-wrapper {
   position: relative;
 }
@@ -951,7 +1008,6 @@ label {
   font-family: inherit;
 }
 
-/* Loader dentro del input */
 .input-loader {
   position: absolute;
   right: 10px;
@@ -964,7 +1020,6 @@ label {
   animation: spin 1s linear infinite;
 }
 
-/* Lista de sugerencias (Autocompletar) */
 .suggestions-list {
   position: absolute;
   top: 100%;
@@ -1027,10 +1082,9 @@ label {
   text-overflow: ellipsis;
 }
 
-/* Mapa Inline en el Formulario */
 .inline-map-wrapper {
   width: 100%;
-  height: 220px; /* Tamaño mejorado */
+  height: 220px;
   border: 1px solid rgba(212, 175, 55, 0.2);
   border-radius: 6px;
   overflow: hidden;
@@ -1044,7 +1098,6 @@ label {
   background: #111;
 }
 
-/* Switch */
 .switch-container {
   display: flex;
   align-items: center;
@@ -1090,7 +1143,6 @@ input:checked+.slider:before {
   color: #ccc;
 }
 
-/* Botón Submit */
 .btn-submit {
   margin-top: 10px;
   padding: 12px;
@@ -1122,9 +1174,6 @@ input:checked+.slider:before {
   box-shadow: none;
 }
 
-/* =========================================
-   MODALES
-   ========================================= */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1192,7 +1241,6 @@ input:checked+.slider:before {
   flex-direction: column;
 }
 
-/* Cuerpo modal de éxito */
 .success-body {
   padding: 30px 20px;
   align-items: center;
@@ -1221,7 +1269,6 @@ input:checked+.slider:before {
   margin: 5px 0 25px 0;
 }
 
-/* Modal con mapa */
 .map-wrapper {
   width: 100%;
   height: 300px;
@@ -1292,9 +1339,6 @@ input:checked+.slider:before {
   background: #ffdb60;
 }
 
-/* =========================================
-   UTILIDADES Y ANIMACIONES
-   ========================================= */
 .spinner-tiny {
   width: 16px;
   height: 16px;
@@ -1335,7 +1379,6 @@ input:checked+.slider:before {
   opacity: 0;
 }
 
-/* Scrollbars Personalizados */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -1354,29 +1397,26 @@ input:checked+.slider:before {
   background: #d4af37;
 }
 
-/* =========================================
-   RESPONSIVE (Mejora de tamaños)
-   ========================================= */
 @media (max-width: 1000px) {
   .split-content {
     flex-direction: column;
-    overflow-y: auto; /* Permite scroll vertical en toda el área */
+    overflow-y: auto;
   }
 
   .table-section {
     flex: none;
-    height: 50%; /* Mitad para tabla */
+    height: 50%;
     border-right: none;
     border-bottom: 1px solid rgba(212, 175, 55, 0.1);
   }
 
   .form-section {
     flex: none;
-    height: 50%; /* Mitad para formulario */
+    height: 50%;
   }
   
   .desc-cell {
-    max-width: 150px; /* Reducir ancho texto en móvil */
+    max-width: 150px;
   }
 }
 </style>
