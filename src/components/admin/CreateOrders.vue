@@ -422,7 +422,7 @@ export default {
       if (this.inlineMapInstance) this.inlineMapInstance.flyTo({ center: [-75.5658, 6.2476], zoom: 12 });
     },
 
-    // --- 2. GENERAR RUTA ---
+    // --- 2. GENERAR RUTA (CORREGIDO PARA EL BACKEND) ---
     async generateRoute() {
       if (!this.routeName || !this.routeName.trim()) return alert("⚠️ Por favor, ingresa un nombre para la ruta.");
       if (this.orders.length < 2) return alert("Agrega al menos 2 pedidos para crear una ruta.");
@@ -431,9 +431,10 @@ export default {
       const token = this.getCleanToken();
       const fleetId = String(this.getUserIdFromToken(token));
 
+      // 1. Crear mapa temporal y payload para el Optimizador
       const tempMap = new Map();
-
       const locationsPayload = this.orders.map((order, index) => {
+        // Usamos un ID temporal simple (1, 2, 3...) para el algoritmo
         const simpleId = index + 1; 
         tempMap.set(String(simpleId), order); 
         return {
@@ -443,10 +444,10 @@ export default {
         };
       });
 
-      console.log("🚀 Payload a Java:", { fleetId, locations: locationsPayload });
+      console.log("🚀 Enviando a optimizar:", { fleetId, locations: locationsPayload });
 
       try {
-        // Optimizar (Java)
+        // --- PASO A: OPTIMIZAR (JAVA) ---
         const resOptimize = await fetch(`${this.baseUrl}/api/Optimizer/optimize`, {
           method: 'POST',
           headers: {
@@ -465,23 +466,36 @@ export default {
         const optimizedData = await resOptimize.json();
         this.routeDistance = optimizedData.totalDistanceKm || 0;
 
-        // Recuperar IDs reales
-        const sortedList = optimizedData.optimizedOrder || [];
-        sortedList.sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+        // --- PASO B: REORDENAR Y PREPARAR DATOS ---
         
-        const orderedRealIds = sortedList.map(item => {
-           const original = tempMap.get(String(item.id));
-           return original ? original.id : null;
-        }).filter(id => id !== null); 
+        // 1. Obtener la secuencia y ordenarla por número de secuencia
+        const sortedSequence = optimizedData.optimizedOrder || [];
+        sortedSequence.sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+        
+        // 2. Reconstruir la lista visual (this.orders) en el NUEVO ORDEN
+        // Esto es vital: actualizamos la vista primero para que coincida con lo que se guarda
+        const newOrderedOrders = [];
+        sortedSequence.forEach(item => {
+           const originalOrder = tempMap.get(String(item.id));
+           if (originalOrder) {
+             newOrderedOrders.push(originalOrder);
+           }
+        });
 
-        console.log("✅ IDs Reales para guardar:", orderedRealIds);
+        // 3. Actualizar la variable reactiva
+        this.orders = newOrderedOrders;
 
-        if (orderedRealIds.length === 0) throw new Error("Error interno al recuperar IDs.");
+        // 4. Extraer los IDs REALES de la lista ya ordenada
+        const orderedRealIds = this.orders.map(o => o.id);
 
-        // Guardar Ruta (.NET)
+        console.log("✅ IDs Reales ordenados para guardar:", orderedRealIds);
+
+        if (orderedRealIds.length === 0) throw new Error("Error interno al procesar los IDs.");
+
+        // --- PASO C: GUARDAR RUTA (.NET) ---
         const savePayload = {
           routeName: this.routeName.trim(),
-          orderIds: orderedRealIds
+          orderIds: orderedRealIds // Enviamos [ID_1, ID_2, ID_3] en el orden correcto
         };
 
         const resSave = await fetch(`${this.baseUrl}/api/Routes/save`, {
