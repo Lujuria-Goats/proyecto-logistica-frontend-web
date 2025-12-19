@@ -18,7 +18,7 @@
           </div>
 
           <h1 class="title text-white">Apex Vision</h1>
-          <p class="subtitle text-white">Lo que no se ve, no se entrega.</p>
+          <p class="subtitle text-white">Marca, optimiza y entrega</p>
 
           <p class="description text-white">
             Plataforma inteligente de logística diseñada para optimizar rutas, 
