@@ -144,7 +144,7 @@ proyecto-logistica-frontend-web/
    - Abre `src/api/authApi.js`
    - Verifica que `API_BASE_URL` apunta al backend correcto:
      ```javascript
-     const API_BASE_URL = "https://service.lujuria.crudzaso.com/api";
+     const API_BASE_URL = "https://service.apexvision.crudzaso.com/api";
      ```
 
 5. **Iniciar servidor de desarrollo:**
@@ -305,7 +305,7 @@ isAuthenticated()
 ### Base URL
 
 ```javascript
-const API_BASE_URL = "https://service.lujuria.crudzaso.com/api";
+const API_BASE_URL = "https://service.apexvision.crudzaso.com/api";
 ```
 
 ---
@@ -314,12 +314,12 @@ const API_BASE_URL = "https://service.lujuria.crudzaso.com/api";
 
 Actualmente, las siguientes constantes están hardcodeadas:
 
-- **API_BASE_URL:** `https://service.lujuria.crudzaso.com/api` (en `authApi.js`)
+- **API_BASE_URL:** `https://service.apexvision.crudzaso.com/api` (en `authApi.js`)
 - **Mapbox Token:** `pk.eyJ1IjoianZlbGV6MDAwIiwiYSI6ImNtaWkzOHZ5dTAxbnkzZHE3Mmo2c2VnbjQifQ.R-ikqyiMMZVwUHOH9CJ6mg` (en `AssignRoutes.vue`)
 
 **Recomendación:** Usar `.env.local` para desarrollo:
 ```
-VITE_API_BASE_URL=https://service.lujuria.crudzaso.com/api
+VITE_API_BASE_URL=https://service.apexvision.crudzaso.com/api
 VITE_MAPBOX_TOKEN=tu_token_aqui
 ```
 

@@ -349,7 +349,7 @@ export default {
   name: "AssignRoutes",
   data() {
     return {
-      baseUrl: 'https://service.lujuria.crudzaso.com',
+      baseUrl: 'https://service.apexvision.crudzaso.com',
       mapboxAccessToken: "pk.eyJ1IjoianZlbGV6MDAwIiwiYSI6ImNtaWkzOHZ5dTAxbnkzZHE3Mmo2c2VnbjQifQ.R-ikqyiMMZVwUHOH9CJ6mg",
 
       unassignedRoutes: [],

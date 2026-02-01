@@ -189,7 +189,7 @@ export default {
   name: "DriversPage",
   data() {
     return {
-      baseUrl: 'https://service.lujuria.crudzaso.com',
+      baseUrl: 'https://service.apexvision.crudzaso.com',
       
       searchPhone: "",
       searchMessage: "", 

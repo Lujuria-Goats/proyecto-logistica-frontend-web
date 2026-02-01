@@ -3,7 +3,7 @@
  * Maneja comunicación con el backend en /api/Auth
  */
 
-const API_BASE_URL = "https://service.lujuria.crudzaso.com/api";
+const API_BASE_URL = "https://service.apexvision.crudzaso.com/api";
 
 /**
  * Registra un nuevo usuario

@@ -167,7 +167,7 @@ export default {
           password: this.form.password, phoneNumber: this.form.phoneNumber, role: "Admin",
           companyNit: this.form.companyNit, companyName: this.form.companyName
         };
-        const response = await fetch('https://service.lujuria.crudzaso.com/api/Auth/register/admin', {
+        const response = await fetch('https://service.apexvision.crudzaso.com/api/Auth/register/admin', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
         });
         if (!response.ok) {

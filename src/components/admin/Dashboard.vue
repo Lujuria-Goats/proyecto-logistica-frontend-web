@@ -110,7 +110,7 @@ export default {
   name: "Dashboard",
   data() {
     return {
-      baseUrl: 'https://service.lujuria.crudzaso.com',
+      baseUrl: 'https://service.apexvision.crudzaso.com',
       isLoading: true,
       error: null,
       
