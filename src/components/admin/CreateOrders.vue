@@ -220,7 +220,7 @@ export default {
   name: "CreateOrders",
   data() {
     return {
-      baseUrl: 'https://service.apexvision.crudzaso.com',
+      baseUrl: 'http://service.apexvision.crudzaso.com',
       mapboxAccessToken: "pk.eyJ1IjoianZlbGV6MDAwIiwiYSI6ImNtaWkzOHZ5dTAxbnkzZHE3Mmo2c2VnbjQifQ.R-ikqyiMMZVwUHOH9CJ6mg",
 
       orders: [], 
