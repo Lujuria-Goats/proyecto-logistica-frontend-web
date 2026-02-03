@@ -46,9 +46,9 @@
           <div class="card-icon">🚀</div>
           <div class="card-info">
             <h3>En Curso</h3>
-            <p class="number">{{ stats.orders.inTransit }}</p>
+            <p class="number">{{ stats.routes.active }}</p>
             <span class="trend">
-              {{ stats.routes.active }} rutas activas
+              {{ stats.orders.inTransit }} pedidos en tránsito
             </span>
           </div>
         </div>
